@@ -35,7 +35,7 @@ Serve the `site` directory as a static website. On Cloudflare Pages, use no fram
 
 ## Privacy
 
-The game stores only your best score and preferences in your browser. No account, analytics, or game server is used.
+The game stores only your best score and preferences in your browser. No account or game server is used.
 
 ## License
 
