@@ -1,0 +1,32 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#fbf7ed"><meta name="description" content="A little potato. A little rhythm. Keep the platforms moving and see how far you can bounce. Play Poteto in your browser.">
+<meta property="og:title" content="Poteto — Small potato. Big leap."><meta property="og:description" content="Keep the platforms moving. Keep the little potato bouncing. How far will you go?"><meta property="og:type" content="website"><meta property="og:url" content="https://poteto.cc/"><meta property="og:image" content="https://poteto.cc/social.png"><meta name="twitter:card" content="summary_large_image">
+<link rel="canonical" href="https://poteto.cc/"><link rel="icon" href="/favicon.svg" type="image/svg+xml"><link rel="stylesheet" href="/style.css">
+<title>Poteto — Small potato. Big leap.</title>
+</head>
+<body>
+<div class="app">
+<header><a class="wordmark" href="/" aria-label="Poteto home"><svg viewBox="0 0 42 45" aria-hidden="true"><path d="M13 6C24-2 36 8 37 23S28 43 15 40 0 15 13 6Z" fill="#e8b777" stroke="#74523a" stroke-width="2"/><path d="M14 21v3m12-3v3m-9 5q4 4 7-1" fill="none" stroke="#74523a" stroke-width="2" stroke-linecap="round"/><path d="M19 8q-2-9 8-5-1 6-8 5" fill="#849e5b"/></svg>poteto<span>.cc</span></a><div class="header-right"><span class="edition">A BOUNCY RELAY GAME</span><button class="icon-button" id="sound" aria-label="Mute sound" title="Sound on"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 9h4l5-4v14l-5-4H4zm13-1q4 4 0 8m3-11q7 7 0 14"/></svg></button><button class="icon-button" id="about" aria-label="About and settings" title="About and settings"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="8.5"/><path d="M12 11v6m0-10v1"/></svg></button></div></header>
+<main>
+<div class="intro" id="intro"><p class="eyebrow"><span>✦</span> A LITTLE JOY, ONE BOUNCE AT A TIME</p><h1>Small potato. <em>Big leap.</em></h1><p class="tagline">A little rhythm. A little courage. A very bouncy potato.</p></div>
+<section class="game" aria-label="Poteto platform relay game">
+<div class="game-top"><div class="score-group"><span class="label">SCORE</span><strong id="score">0</strong></div><div id="jump-label" class="jump-label">A happy little adventure</div><div class="best-group"><span class="label">PERSONAL BEST <span aria-hidden="true">♧</span></span><strong id="best">0</strong></div></div>
+<canvas id="scene" aria-label="A potato bouncing above two movable platforms in a sunny garden"></canvas>
+<div id="welcome" class="welcome"><span class="pill">YOU MOVE THE PLATFORMS</span><h2>Keep the little spud bouncing.</h2><p>Move the back platform ahead.<br>Match the number under your potato.</p><button id="play" class="primary">Let's bounce <span aria-hidden="true">↗</span></button><span class="micro">No rush. Find your rhythm.</span></div>
+<div id="pause-screen" class="overlay" hidden><div class="card"><span class="eyebrow">TAKE A BREATHER</span><h2>Spud on a break.</h2><button id="resume" class="primary">Keep bouncing <span>↗</span></button></div></div>
+<div id="result" class="overlay" hidden><div class="card"><span id="result-kicker" class="eyebrow">ONE LOVELY LITTLE RUN</span><h2 id="result-title">Oop. A little tumble.</h2><div class="result-score" id="final-score">0</div><p id="result-detail">Every bounce is a fresh start.</p><button id="retry" class="primary">One more bounce <span>↗</span></button><button id="share" class="secondary"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 16V3m-5 5 5-5 5 5M5 13v7h14v-7"/></svg>Share my score</button><p id="share-status" role="status" class="micro"></p><input id="share-copy" aria-label="Your score and share link" readonly hidden></div></div>
+<button id="pause" class="pause icon-button" aria-label="Pause game" hidden><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 5v14m6-14v14"/></svg></button>
+<div class="controls" id="controls"><button id="left" class="move left" aria-label="Move the rear platform one space ahead"><span class="keycap">← <span>A</span></span><span class="control-copy"><b>One little step</b><small>Tap left · Move +1</small></span><span class="hearts" aria-hidden="true">♥</span></button><span class="control-divider"></span><button id="right" class="move right" aria-label="Move the rear platform two spaces ahead"><span class="hearts" aria-hidden="true">♥ ♥</span><span class="control-copy"><b>A bigger leap</b><small>Tap right · Move +2</small></span><span class="keycap">→ <span>D</span></span></button></div>
+<div id="effects" aria-hidden="true"></div>
+</section>
+<div class="under-game"><span><i class="status-dot"></i> Made for your happy little break</span><span class="desktop-tip">← → to move platforms <span class="dot">·</span> Space to pause</span><button id="share-home" class="text-button">Share Poteto <span aria-hidden="true">↗</span></button></div>
+</main>
+<footer><span>A small game with a lot of heart.</span><span class="footer-heart" aria-hidden="true">♡</span><span>Happy bouncing.</span></footer>
+</div>
+<dialog id="settings" aria-labelledby="settings-title"><button id="close-settings" class="close icon-button" aria-label="Close settings">×</button><span class="eyebrow">HELLO, LITTLE SPUD</span><h2 id="settings-title">A pocketful of joy.</h2><p>Poteto is a potato-sized take on Bouncy Relay. Move the back platform ahead and keep the bounce going.</p><div class="how"><span><b>← / A</b> One space</span><span><b>→ / D</b> Two spaces</span><span><b>Space</b> Pause</span></div><p class="hint">The number on your platform is your next jump. A 3 needs two quick moves: +1 and +2.</p><label class="setting-row">Music & sounds <input type="checkbox" id="music-setting" checked></label><label class="setting-row">Gentle motion <input type="checkbox" id="motion-setting"></label><div class="about-links"><a href="https://github.com/sssw/poteto.cc" target="_blank" rel="noopener noreferrer">View on GitHub ↗</a><a href="https://apps.apple.com/app/id6764088294" target="_blank" rel="noopener noreferrer">Bouncy Relay for iOS ↗</a></div><p class="privacy">Your best score and preferences stay in this browser. No account needed.</p></dialog>
+<div id="toast" role="status"></div>
+<script type="module" src="/app.js"></script>
+</body></html>
