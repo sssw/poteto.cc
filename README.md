@@ -11,9 +11,10 @@ The potato bounces automatically. Move the rear platform ahead of the front one 
 - Tap left, press **←**, or press **A** to move one space.
 - Tap right, press **→**, or press **D** to move two spaces.
 - Match the number on the potato's takeoff platform. A three-space jump needs two quick moves, one of each size.
+- A **?** reveals its number as the potato bounces in place. Keep that platform underneath it; the reveal bounce adds no points.
 - Press **Space** to pause. Every fifth landing earns a bonus point.
 
-Works in desktop, tablet, and mobile browsers. Includes original music, gentle motion, local best scores, and score sharing.
+Plays at the original Bouncy Relay pace, with immediate touch controls and a lively 120 BPM soundtrack. Works in desktop, tablet, and mobile browsers, with gentle motion, local best scores, and score sharing.
 
 [Bouncy Relay for iOS](https://apps.apple.com/app/id6764088294)
 

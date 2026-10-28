@@ -1,5 +1,5 @@
 const midi = note => 440 * 2 ** ((note - 69) / 12);
-const CHORDS = [[60, 64, 67, 72], [57, 60, 64, 69], [53, 57, 60, 65], [55, 60, 62, 67]];
+const CHORDS = [[60, 64, 67, 71], [57, 60, 64, 67], [53, 57, 60, 64], [55, 59, 62, 67]];
 const MELODY = [0, -1, 2, 1, 3, -1, 2, -1, 1, -1, 0, 2, 1, -1, 0, -1];
 
 /** A small, original musical loop with responsive, in-key game sounds. */
@@ -16,7 +16,9 @@ export class Soundtrack {
     this.step = 0;
     this.nextNote = 0;
     this.chord = CHORDS[0];
-    this.eighth = 60 / 104 / 2;
+    this.eighth = 60 / 120 / 2;
+    this.intensity = 0;
+    this.energy = 0;
   }
 
   async start() {
@@ -71,6 +73,11 @@ export class Soundtrack {
   setMuted(value) {
     this.muted = Boolean(value);
     this.volume();
+  }
+
+  setIntensity(value) {
+    this.intensity = Number.isFinite(value) ? Math.min(1, Math.max(0, value)) : 0;
+    if (this.intensity === 0) this.energy = 0;
   }
 
   setPaused(value) {
@@ -149,16 +156,26 @@ export class Soundtrack {
   }
 
   beat(step, time) {
-    const chord = CHORDS[Math.floor(step / 16) % CHORDS.length];
+    const chord = CHORDS[Math.floor(step / 8) % CHORDS.length];
     this.chord = chord;
-    const position = step % 16;
-    const melody = MELODY[position];
-    if (melody >= 0) this.pluck(chord[melody] + 12, time, 0.115, 0.48);
-    if (position % 4 === 0) this.tone(chord[position % 8 === 0 ? 0 : 2] - 24, time, 0.65, 0.2);
-    if (position === 0 || position === 8) {
-      chord.slice(0, 3).forEach((note, i) => this.pluck(note, time + i * 0.018, 0.045, 0.8));
+    this.energy += (this.intensity - this.energy) * 0.55;
+    const position = step % 8;
+    const melody = MELODY[step % MELODY.length];
+    if (melody >= 0) this.pluck(chord[melody] + 12, time, 0.105, 0.36);
+    if (position % 4 === 0) this.tone(chord[position === 0 ? 0 : 2] - 24, time, 0.45, 0.18);
+    if (position === 0) {
+      chord.forEach((note, i) => this.pluck(note, time + i * 0.014, 0.032, 0.62));
     }
-    if (position % 2 === 1) this.brush(time, position % 4 === 3 ? 0.065 : 0.035);
+    if (position % 2 === 1) {
+      this.brush(time, (position % 4 === 3 ? 0.05 : 0.028) + this.energy * 0.012);
+    }
+    // A light offbeat layer gives successful runs lift without raising the bus volume.
+    if (this.energy > 0.01) {
+      if (position === 2 || position === 6) {
+        this.pluck(chord[1] + 12, time + this.eighth / 2, this.energy * 0.035, 0.16);
+      }
+      if (position % 2 === 0) this.brush(time + this.eighth / 2, this.energy * 0.022);
+    }
   }
 
   canPlay() {
@@ -168,17 +185,26 @@ export class Soundtrack {
   move(steps) {
     if (!this.canPlay()) return;
     const now = this.context.currentTime;
-    this.pluck(this.chord[1] + 12, now, 0.2, 0.21);
-    if (steps === 2) this.pluck(this.chord[3] + 12, now + 0.065, 0.18, 0.26);
+    this.pluck(this.chord[1] + 12, now, 0.18, 0.16);
+    if (steps === 2) this.pluck(this.chord[3] + 12, now + 0.05, 0.16, 0.20);
   }
 
   land(combo = 0) {
     if (!this.canPlay()) return;
     const now = this.context.currentTime;
-    this.pluck(this.chord[2] + 12, now, 0.13, 0.27);
+    this.pluck(this.chord[2] + 12, now, 0.12, 0.21);
     if (combo > 0 && combo % 5 === 0) {
-      this.chord.forEach((note, i) => this.pluck(note + 12, now + i * 0.07, 0.14, 0.5));
+      this.chord.forEach((note, i) => this.pluck(note + 12, now + i * 0.05, 0.11, 0.32));
     }
+  }
+
+  reveal(number) {
+    if (!this.canPlay() || !Number.isInteger(number) || number < 1 || number > 3) return;
+    const now = this.context.currentTime;
+    for (let i = 0; i < number; i++) {
+      this.pluck(this.chord[i] + 12, now + i * 0.065, 0.10, 0.22);
+    }
+    this.tone(this.chord[3] + 24, now + 0.03, 0.30, 0.022);
   }
 
   fail() {

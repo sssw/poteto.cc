@@ -2,3 +2,14 @@
 
 @media(max-height:600px) and (min-width:480px){.game .controls{height:64px}.playing .game{min-height:215px}.playing header{height:52px}.playing .under-game{margin:8px 0}.playing .game-top{top:12px}.playing .pause{top:60px}.playing .card{padding:12px 20px}.playing .card .eyebrow{font-size:8px}.playing .card .micro{display:none}.playing .result-score{font-size:32px;margin:5px}.playing .card h2{font-size:22px}.playing .card p{font-size:10px}.playing .secondary{padding-top:7px}.welcome h2{font-size:22px}.welcome .pill{font-size:7px}.welcome p{font-size:10px}.keycap span{display:none}}
 @media(max-height:600px) and (min-width:480px){#pause-screen .card{padding:18px 25px}#result{bottom:0}#result .card{padding:10px 25px}#result .card .micro{display:none}#result .card p{margin:5px 0}#result .result-score{font-size:28px;margin:4px}#result .card h2{font-size:21px;margin:5px 0}#result .primary{min-height:36px;padding:8px 15px}}
+
+.move{touch-action:none}
+.heart-pop{animation-duration:.68s}
+.playing .jump-label{font-weight:700;letter-spacing:.3px;box-shadow:0 2px 0 #9caf7b20}
+.playing .jump-label[data-distance="1"]{background:#e9f1d3;border-color:#b7ca94;color:#506a37}
+.playing .jump-label[data-distance="2"]{background:#fff0cc;border-color:#dfc489;color:#816027}
+.playing .jump-label[data-distance="3"]{background:#f2e6f6;border-color:#c9acd5;color:#79538b}
+
+
+@media(max-height:600px) and (min-width:480px){.playing main{padding-top:0}.playing .game{height:calc(100svh - 86px)}}
+.playing .jump-label[data-distance="reveal"]{background:#e7f4ef;border-color:#9fc7ba;color:#3f7768}
