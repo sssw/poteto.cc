@@ -1,7 +1,7 @@
-import { Relay, TIMING, shareText } from './game.js';
-import { Garden } from './art.js';
-import { Soundtrack } from './audio.js';
-import { bindMoveButton } from './input.js';
+import { Relay, TIMING, shareText } from './game.js?v=1.1.0';
+import { Garden } from './art.js?v=1.1.0';
+import { Soundtrack } from './audio.js?v=1.1.0';
+import { bindMoveButton } from './input.js?v=1.1.0';
 
 const $ = id => document.getElementById(id);
 const store = {
