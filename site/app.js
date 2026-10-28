@@ -1,9 +1,9 @@
-import { Relay, TIMING } from './game.js?v=1.2.1';
-import { Garden } from './art.js?v=1.2.1';
-import { Soundtrack } from './audio.js?v=1.2.1';
-import { bindMoveButton } from './input.js?v=1.2.1';
-import { LANGUAGES, normalizeLocale, resolveLocale, t, formatNumber, localeUrl } from './i18n.js?v=1.2.1';
-import { PictureSharing } from './sharing.js?v=1.2.1';
+import { Relay, TIMING } from './game.js?v=1.2.2';
+import { Garden } from './art.js?v=1.2.2';
+import { Soundtrack } from './audio.js?v=1.2.2';
+import { bindMoveButton } from './input.js?v=1.2.2';
+import { LANGUAGES, normalizeLocale, resolveLocale, t, formatNumber, localeUrl } from './i18n.js?v=1.2.2';
+import { PictureSharing } from './sharing.js?v=1.2.2';
 
 const $ = id => document.getElementById(id);
 const store = {
@@ -126,7 +126,7 @@ function pulse(element, className) {
 }
 function newGame() {
   game.reset();
-  garden.camera = 0;
+  garden.resetCamera();
   garden.fall = 0;
   garden.particles = [];
   active = true;

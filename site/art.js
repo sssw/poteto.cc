@@ -1,4 +1,4 @@
-import { TIMING, platformHeight } from './game.js?v=1.2.1';
+import { TIMING, platformHeight } from './game.js?v=1.2.2';
 
 const TAU = Math.PI * 2;
 const clamp = (value, low, high) => Math.min(high, Math.max(low, value));
@@ -73,15 +73,39 @@ export function arcHeight(distance, phase, cell) {
     : TIMING.jumpHeight + (distance - 1) * TIMING.extraJumpHeight) * cell;
 }
 
-export function followCamera(current, position, target, layout, dt) {
+export function cameraTuning(layout) {
+  const { width, cell, origin, margin } = layout;
+  const spare = (width - margin - cell * 0.45 - origin) / cell - 3;
+  const lead = clamp(1.00 - spare, 0, 0.80);
+  const tripleDuration = (TIMING.shortJump + 2 * (TIMING.longJump - TIMING.shortJump)) / TIMING.tripleSpeed;
+  const fastestJump = Math.max(1 / TIMING.shortJump, 2 / TIMING.longJump, 3 / tripleDuration);
+  return {
+    anchor: 1.4 - lead,
+    maxSpeed: fastestJump,
+    response: Math.min(0.22, Math.max(0.04, (spare + lead - 0.40) * 0.70 / fastestJump)),
+  };
+}
+
+export function reframeCamera(current, position, target, layout) {
   const { width, cell, origin, margin } = layout;
   const minimum = Math.max(0, target - 1 - (width - margin - cell * 0.45 - origin) / cell);
   const maximum = Math.max(0, position - 1 - (margin + cell * PLAYER_HALF_CELL - origin) / cell);
-  const lookAhead = Math.min(0.5, Math.max(0, target - position) * 0.28);
-  const desired = clamp(position - 1.5 + lookAhead, minimum, maximum);
-  const response = 1 - Math.exp(-Math.max(0, dt) / 0.30);
-  const framed = Math.max(current, minimum);
-  return Math.max(framed, framed + (desired - framed) * response);
+  const { anchor, response, maxSpeed } = cameraTuning(layout);
+  const settled = position - anchor - maxSpeed * response * 1.25;
+  return Math.max(current, Math.min(Math.max(minimum, settled), maximum));
+}
+
+export function followCamera(current, position, _target, layout, dt, previousPosition = position) {
+  if (!Number.isFinite(dt) || dt <= 0) return current;
+  const { anchor, response } = cameraTuning(layout);
+  // Track continuous world position, not a landing target that jumps by up to three cells.
+  // The layout reserves long-jump space before the next platform's number is revealed.
+  const goal = Math.max(0, position - anchor);
+  const previousGoal = Math.max(0, previousPosition - anchor);
+  const velocity = (goal - previousGoal) / dt;
+  const decay = Math.exp(-dt / response);
+  const next = goal - velocity * response + (current - previousGoal + velocity * response) * decay;
+  return Math.max(current, next);
 }
 
 export function potato(c, x, y, size, t = 0, fall = false, pose = {}) {
@@ -186,6 +210,8 @@ export class Garden {
     this.controls = canvas.ownerDocument.getElementById('controls');
     this.welcome = canvas.ownerDocument.getElementById('welcome');
     this.camera = 0;
+    this.cameraPosition = 1;
+    this.cameraLayout = null;
     this.particles = [];
     this.fall = 0;
     this.time = 0;
@@ -195,6 +221,12 @@ export class Garden {
     this.observer.observe(canvas);
     if (this.controls) this.observer.observe(this.controls);
     if (this.welcome) this.observer.observe(this.welcome);
+  }
+
+  resetCamera(position = 1) {
+    this.camera = 0;
+    this.cameraPosition = position;
+    this.cameraLayout = null;
   }
 
   resize() {
@@ -241,8 +273,15 @@ export class Garden {
     const effectScale = platform.effectScale;
     this.cell = cell;
     game.cellWidth = cell;
-    if (active) this.camera = followCamera(this.camera, game.position, game.target, layout, dt);
-    else this.camera = 0;
+    const changedView = !this.cameraLayout || this.cameraLayout.width !== w
+      || this.cameraLayout.height !== h || this.cameraLayout.cell !== cell;
+    if (!active || game.status === 'ready') this.camera = 0;
+    else {
+      if (changedView) this.camera = reframeCamera(this.camera, game.position, game.target, layout);
+      this.camera = followCamera(this.camera, game.position, game.target, layout, dt, this.cameraPosition);
+    }
+    this.cameraPosition = game.position;
+    this.cameraLayout = { width: w, height: h, cell };
     const px = value => origin + (value - 1 - this.camera) * cell;
     c.clearRect(0, 0, w, h);
     if (!this.sky) {

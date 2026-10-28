@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { sceneLayout, followCamera, arcHeight, platformMetrics, PLAYER_HALF_CELL } from '../site/art.js';
+import { sceneLayout, followCamera, arcHeight, platformMetrics, PLAYER_HALF_CELL, reframeCamera } from '../site/art.js';
 import { Relay, platformHeight } from '../site/game.js';
 
 const scenes = [
@@ -77,33 +77,31 @@ test('opening layout keeps both relay platforms and the two available destinatio
   for (const scene of scenes) {
     const layout = sceneLayout(...scene.dimensions);
     const game = new Relay();
-    for (const dt of [0, 1 / 30, 1 / 60, 1 / 120]) {
-      const camera = followCamera(0, game.position, game.target, layout, dt);
-      const screenX = cell => layout.origin + (cell - 1 - camera) * layout.cell;
-      for (const platform of game.platforms) {
-        const x = screenX(platform.cell);
-        assert.ok(x - layout.platform.width / 2 >= layout.margin - 0.01,
-          `${scene.name}: opening platform ${platform.id} clips the left margin`);
-        assert.ok(x + layout.platform.width / 2 <= layout.width - layout.margin + 0.01,
-          `${scene.name}: opening platform ${platform.id} clips the right margin`);
-      }
-      const front = Math.max(...game.platforms.map(platform => platform.cell));
-      const rear = Math.min(...game.platforms.map(platform => platform.cell));
-      const ghostHalfWidth = layout.cell * 0.37 + 0.75;
-      const fullSpan = (front + 2 - rear) * layout.cell + layout.platform.width / 2 + ghostHalfWidth;
-      if (fullSpan <= layout.width - 2 * layout.margin) {
-        for (const step of [1, 2]) {
-          const x = screenX(front + step);
-          assert.ok(x - ghostHalfWidth >= layout.margin - 0.01,
-            `${scene.name}: opening +${step} destination clips left`);
-          assert.ok(x + ghostHalfWidth <= layout.width - layout.margin + 0.01,
-            `${scene.name}: opening +${step} destination clips right`);
-          ghostChecks++;
-        }
+    const camera = reframeCamera(0, game.position, game.target, layout);
+    const screenX = cell => layout.origin + (cell - 1 - camera) * layout.cell;
+    for (const platform of game.platforms) {
+      const x = screenX(platform.cell);
+      assert.ok(x - layout.platform.width / 2 >= layout.margin - 0.01,
+        `${scene.name}: opening platform ${platform.id} clips the left margin`);
+      assert.ok(x + layout.platform.width / 2 <= layout.width - layout.margin + 0.01,
+        `${scene.name}: opening platform ${platform.id} clips the right margin`);
+    }
+    const front = Math.max(...game.platforms.map(platform => platform.cell));
+    const rear = Math.min(...game.platforms.map(platform => platform.cell));
+    const ghostHalfWidth = layout.cell * 0.37 + 0.75;
+    const fullSpan = (front + 2 - rear) * layout.cell + layout.platform.width / 2 + ghostHalfWidth;
+    if (fullSpan <= layout.width - 2 * layout.margin) {
+      for (const step of [1, 2]) {
+        const x = screenX(front + step);
+        assert.ok(x - ghostHalfWidth >= layout.margin - 0.01,
+          `${scene.name}: opening +${step} destination clips left`);
+        assert.ok(x + ghostHalfWidth <= layout.width - layout.margin + 0.01,
+          `${scene.name}: opening +${step} destination clips right`);
+        ghostChecks++;
       }
     }
   }
-  assert.equal(ghostChecks, scenes.length * 4 * 2, 'Every supported opening has room for both destination hints');
+  assert.equal(ghostChecks, scenes.length * 2, 'Every supported opening has room for both destination hints');
 });
 
 test('all jump arcs fit below the HUD and the full platform shadow stays above the controls', () => {
@@ -160,10 +158,15 @@ test('forward camera keeps complete players and targets visible through long mix
       for (let jump = 0; jump < 80; jump++) {
         const distance = [1, 3, 2, 0][jump % 4];
         const target = start + distance;
-        for (let frame = 0; frame <= fps; frame++) {
-          const position = start + distance * frame / fps;
+        const duration = [0.62, 0.62, 0.78, 1.175][distance];
+        let previousPosition = start;
+        for (let time = 0; time < duration - 1e-10;) {
+          const dt = Math.min(1 / fps, duration - time);
+          time += dt;
+          const position = start + distance * time / duration;
           const previous = camera;
-          camera = followCamera(camera, position, target, layout, 1 / fps);
+          camera = followCamera(camera, position, target, layout, dt, previousPosition);
+          previousPosition = position;
           assert.ok(camera >= previous, 'The camera must never pull the world backward');
           assertFraming(camera, position, target, layout, `${scene.name} at ${fps} Hz`);
         }
@@ -176,7 +179,7 @@ test('forward camera keeps complete players and targets visible through long mix
 test('camera response to a fixed view does not depend on display refresh rate', () => {
   const layout = sceneLayout(1184, 697, 89);
   const after = fps => {
-    let camera = 0;
+    let camera = reframeCamera(0, 5, 7, layout);
     for (let frame = 0; frame < fps; frame++) camera = followCamera(camera, 5, 7, layout, 1 / fps);
     return camera;
   };
@@ -192,12 +195,17 @@ test('every pair of supported layouts can resize during flight or a paused revea
     for (let jump = 0; jump < 24; jump++) {
       const distance = [1, 2, 3, 0][jump % 4];
       const target = start + distance;
-      for (let frame = 0; frame <= 60; frame++) {
-        const position = start + distance * frame / 60;
-        camera = followCamera(camera, position, target, original, 1 / 60);
+      const duration = [0.62, 0.62, 0.78, 1.175][distance];
+      let previousPosition = start;
+      for (let time = 0; time < duration - 1e-10;) {
+        const dt = Math.min(1 / 60, duration - time);
+        time += dt;
+        const position = start + distance * time / duration;
+        camera = followCamera(camera, position, target, original, dt, previousPosition);
+        previousPosition = position;
         for (const destination of scenes) {
           const layout = sceneLayout(...destination.dimensions);
-          const rotated = followCamera(camera, position, target, layout, 0);
+          const rotated = reframeCamera(camera, position, target, layout);
           assert.ok(rotated >= camera);
           assertFraming(rotated, position, target, layout, `${scene.name} to ${destination.name}, jump ${distance}`);
           assert.equal(followCamera(rotated, position, target, layout, 0), rotated, 'A paused camera must settle without drifting');
