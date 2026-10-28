@@ -1,4 +1,4 @@
-import { TIMING } from './game.js?v=1.2.0';
+import { TIMING, platformHeight } from './game.js?v=1.2.1';
 
 const TAU = Math.PI * 2;
 const clamp = (value, low, high) => Math.min(high, Math.max(low, value));
@@ -17,25 +17,55 @@ function path(c, points, fill) {
   c.fill();
 }
 
-export function sceneLayout(width, height, controlHeight, active = true) {
+export const PLAYER_HALF_CELL = 0.54;
+
+export function platformMetrics(cell) {
+  const height = platformHeight(cell);
+  return {
+    width: cell * 0.78,
+    height,
+    top: height * 0.62,
+    radius: clamp(height * 0.34, 8, 16),
+    badge: clamp(cell * 0.095, 9, 16),
+    label: clamp(cell * 0.15, 15, 25),
+    ghostLabel: clamp(cell * 0.12, 11, 20),
+    shadowY: height + 4,
+    shadowRadius: clamp(cell * 0.025, 3.5, 5),
+    bottomPadding: 10,
+    effectScale: clamp(cell / 96, 0.85, 1.6),
+  };
+}
+
+export function sceneLayout(width, height, controlHeight, active = true, welcomeBottom = 0) {
   const mobile = width < 620;
   const floor = Math.max(1, height - controlHeight);
-  const hud = floor < 210 ? 44 : 88;
-  const preferredCell = Math.min(mobile ? 82 : 112, width / (mobile ? 5.5 : 8.2));
+  const margin = clamp(width * 0.04, 14, 24);
+  // Grow smoothly with actual space, including the full mystery arc and landing shadow.
+  const hud = clamp(floor * 0.22, 44, 96);
   const maximumArc = Math.max(TIMING.revealHeight, TIMING.jumpHeight + TIMING.extraJumpHeight * 2);
   const verticalSpan = maximumArc + 0.77 * 1.42;
-  const bottom = Math.max(1, floor - 32);
+  const verticalBudget = floor - hud - 10;
+  let verticalCell = verticalBudget / (verticalSpan + 0.34);
+  if (verticalCell * 0.34 < 30) verticalCell = (verticalBudget - 30) / verticalSpan;
+  else if (verticalCell * 0.34 > 48) verticalCell = (verticalBudget - 48) / verticalSpan;
+  const horizontalCell = Math.max(1, width - 2 * margin) / (3 + PLAYER_HALF_CELL + 0.45);
+  const preferredCell = active ? Math.min(180, width / 5.5)
+    : Math.min(mobile ? 82 : 112, width / (mobile ? 5.5 : 8.2));
   const cell = active
-    ? Math.min(preferredCell, Math.max(12, (bottom - hud) / verticalSpan))
+    ? Math.max(1, Math.min(preferredCell, horizontalCell, Math.max(1, verticalCell)))
     : preferredCell;
+  const platform = platformMetrics(cell);
+  const bottom = Math.max(1, floor - platform.height - platform.bottomPadding);
+  const stackedWelcome = !active && mobile && welcomeBottom > 0;
+  const idleBounce = mobile ? 10 : 21;
   const base = active
     ? Math.min(bottom, Math.max(floor * 0.69, hud + cell * verticalSpan))
-    : floor * (mobile ? 0.83 : 0.71);
-  const margin = clamp(width * 0.04, 14, 24);
+    : Math.min(bottom, Math.max(floor * (mobile ? 0.83 : 0.71), stackedWelcome ? welcomeBottom + 12 + 70 * 1.42 + idleBounce : 0));
   const origin = active
-    ? Math.max(margin + cell * 0.48, Math.min(width * 0.22, cell * 2.5))
+    ? Math.max(margin + cell * 1.4, Math.min(width * 0.22, cell * 2.5))
     : width * (mobile ? 0.36 : 0.20);
-  return { width, height, floor, base, cell, origin, margin, hud, mobile };
+  const idleSize = stackedWelcome ? Math.min(70, Math.max(0, (base - welcomeBottom - 12 - idleBounce) / 1.42)) : mobile ? 70 : 100;
+  return { width, height, floor, base, cell, origin, margin, hud, mobile, platform, idleSize, idleBounce };
 }
 
 export function arcHeight(distance, phase, cell) {
@@ -46,11 +76,12 @@ export function arcHeight(distance, phase, cell) {
 export function followCamera(current, position, target, layout, dt) {
   const { width, cell, origin, margin } = layout;
   const minimum = Math.max(0, target - 1 - (width - margin - cell * 0.45 - origin) / cell);
-  const maximum = Math.max(0, position - 1 - (margin + cell * 0.48 - origin) / cell);
+  const maximum = Math.max(0, position - 1 - (margin + cell * PLAYER_HALF_CELL - origin) / cell);
   const lookAhead = Math.min(0.5, Math.max(0, target - position) * 0.28);
   const desired = clamp(position - 1.5 + lookAhead, minimum, maximum);
   const response = 1 - Math.exp(-Math.max(0, dt) / 0.30);
-  return Math.max(current, minimum, current + (desired - current) * response);
+  const framed = Math.max(current, minimum);
+  return Math.max(framed, framed + (desired - framed) * response);
 }
 
 export function potato(c, x, y, size, t = 0, fall = false, pose = {}) {
@@ -153,6 +184,7 @@ export class Garden {
     this.canvas = canvas;
     this.c = canvas.getContext('2d');
     this.controls = canvas.ownerDocument.getElementById('controls');
+    this.welcome = canvas.ownerDocument.getElementById('welcome');
     this.camera = 0;
     this.particles = [];
     this.fall = 0;
@@ -162,6 +194,7 @@ export class Garden {
     this.observer = new ResizeObserver(() => this.resize());
     this.observer.observe(canvas);
     if (this.controls) this.observer.observe(this.controls);
+    if (this.welcome) this.observer.observe(this.welcome);
   }
 
   resize() {
@@ -169,6 +202,9 @@ export class Garden {
     this.w = bounds.width;
     this.h = bounds.height;
     this.controlHeight = this.controls?.getBoundingClientRect().height ?? 0;
+    const welcome = this.welcome?.getBoundingClientRect();
+    this.welcomeBottom = welcome?.height && welcome.left - bounds.left < bounds.width * 0.4
+      ? Math.max(0, welcome.bottom - bounds.top) : 0;
     const ratio = Math.min(window.devicePixelRatio || 1, 2);
     const width = Math.round(this.w * ratio);
     const height = Math.round(this.h * ratio);
@@ -182,11 +218,12 @@ export class Garden {
 
   burst(x) {
     if (this.reduced) return;
+    const scale = platformMetrics(this.cell || 96).effectScale;
     this.particles.push({ kind: 'ring', x, life: 1 });
     for (let i = 0; i < 9; i++) {
       this.particles.push({
-        kind: 'petal', x, y: 0, vx: (Math.random() - 0.5) * 100,
-        vy: -30 - Math.random() * 70, life: 1,
+        kind: 'petal', x, y: 0, vx: (Math.random() - 0.5) * 100 * scale,
+        vy: (-30 - Math.random() * 70) * scale, life: 1,
         color: ['#eed177', '#e1a098', '#99b581'][i % 3],
       });
     }
@@ -199,8 +236,9 @@ export class Garden {
     if (!w || !h) return;
     this.time += this.reduced ? 0 : dt;
     const t = this.time;
-    const layout = sceneLayout(w, h, this.controlHeight, active);
-    const { mobile, floor, base, cell, origin } = layout;
+    const layout = sceneLayout(w, h, this.controlHeight, active, this.welcomeBottom);
+    const { mobile, floor, base, cell, origin, platform } = layout;
+    const effectScale = platform.effectScale;
     this.cell = cell;
     game.cellWidth = cell;
     if (active) this.camera = followCamera(this.camera, game.position, game.target, layout, dt);
@@ -261,17 +299,17 @@ export class Garden {
       for (let i = 1; i <= 2; i++) {
         const x = px(front + i);
         c.save();
-        c.setLineDash([4, 5]);
+        c.setLineDash([4 * effectScale, 5 * effectScale]);
         c.strokeStyle = front + i === game.target ? '#8e7947' : '#84966b90';
         c.lineWidth = 1.5;
         c.beginPath();
-        c.roundRect(x - cell * 0.37, base, cell * 0.74, 23, 7);
+        c.roundRect(x - cell * 0.37, base, cell * 0.74, platform.height * 0.8, platform.radius * 0.8);
         c.stroke();
         c.restore();
         c.fillStyle = '#64774b';
-        c.font = '11px Trebuchet MS';
+        c.font = `${platform.ghostLabel}px Trebuchet MS`;
         c.textAlign = 'center';
-        c.fillText('+' + i, x, base + 16);
+        c.fillText('+' + i, x, base + platform.height * 0.4 + platform.ghostLabel * 0.34);
       }
     }
     if (active && game.phase === 'reveal' && game.status === 'playing' && !this.reduced) {
@@ -279,14 +317,14 @@ export class Garden {
       const shimmer = Math.sin(game.progress * Math.PI);
       c.save();
       c.globalAlpha = 0.2 + shimmer * 0.3;
-      ellipse(c, revealX, base + 5, cell * (0.5 + shimmer * 0.12), 17, '#fff8ce');
+      ellipse(c, revealX, base + 5 * effectScale, cell * (0.5 + shimmer * 0.12), 17 * effectScale, '#fff8ce');
       c.strokeStyle = '#fffbea';
       c.lineWidth = 1.5;
       for (let i = 0; i < 4; i++) {
         const angle = (i / 4 + game.progress * 0.04) * TAU;
         const sx = revealX + Math.cos(angle) * cell * 0.65;
         const sy = base - cell * 0.35 + Math.sin(angle) * cell * 0.42;
-        const radius = 2 + shimmer * 2;
+        const radius = (2 + shimmer * 2) * effectScale;
         c.beginPath();
         c.moveTo(sx - radius, sy);
         c.lineTo(sx + radius, sy);
@@ -299,37 +337,38 @@ export class Garden {
     for (const p of game.platforms) {
       const x = px(game.visualCell(p));
       const y = base - game.visualLift(p) * cell;
-      const pw = cell * 0.78;
+      const pw = platform.width;
       const colors = p.number === 0 ? ['#d0e9e6', '#82aaa9', '#345d61']
         : p.number === 1 ? ['#d4e3ab', '#8ba76a', '#34472c']
         : p.number === 2 ? ['#f3cf86', '#c6a162', '#62461f']
           : ['#cfb8dd', '#a98bb9', '#543762'];
-      ellipse(c, x, base + 34, pw * 0.49, 4, '#82965b25');
+      ellipse(c, x, base + platform.shadowY, pw * 0.49, platform.shadowRadius, '#82965b25');
       c.fillStyle = colors[1];
       c.beginPath();
-      c.roundRect(x - pw / 2, y, pw, 29, Math.min(10, pw / 3));
+      c.roundRect(x - pw / 2, y, pw, platform.height, Math.min(platform.radius, pw / 3));
       c.fill();
       c.fillStyle = colors[0];
       c.beginPath();
-      c.roundRect(x - pw / 2, y - 2, pw, 18, Math.min(8, pw / 3));
+      c.roundRect(x - pw / 2, y - 2, pw, platform.top, Math.min(platform.radius * 0.8, pw / 3));
       c.fill();
       if (active && p.cell === game.target && game.status === 'playing') {
         c.strokeStyle = '#fffbed';
-        c.lineWidth = 2;
+        c.lineWidth = 2 * effectScale;
         c.stroke();
       }
       c.fillStyle = '#ffffff60';
       c.beginPath();
-      c.roundRect(x - pw / 2 + 5, y + 1, Math.max(1, pw - 10), 3, 1.5);
+      c.roundRect(x - pw / 2 + 5 * effectScale, y + effectScale, Math.max(1, pw - 10 * effectScale), 3 * effectScale, 1.5 * effectScale);
       c.fill();
-      ellipse(c, x, y + 15, 9, 9, '#fffbed9c');
+      const badgeY = y + platform.height * 0.52;
+      ellipse(c, x, badgeY, platform.badge, platform.badge, '#fffbedb8');
       c.fillStyle = colors[2];
-      c.font = 'bold 15px Trebuchet MS';
+      c.font = `bold ${platform.label}px Trebuchet MS`;
       c.textAlign = 'center';
-      c.fillText(p.number === 0 ? '?' : p.number, x, y + 20);
+      c.fillText(p.number === 0 ? '?' : p.number, x, badgeY + platform.label * 0.34);
     }
     const x = px(active ? game.position : 1);
-    const size = active ? cell * 0.77 : mobile ? 70 : 100;
+    const size = active ? cell * 0.77 : layout.idleSize;
     const progress = game.progress;
     const squash = !this.reduced && active && game.status === 'playing' ? Math.max(0, 1 - progress / 0.22) : 0;
     const stretch = !this.reduced && active && game.status === 'playing' ? Math.sin(progress * Math.PI) * 0.06 : 0;
@@ -340,7 +379,7 @@ export class Garden {
     };
     const arc = arcHeight(game.distance, game.phase, cell);
     let y = base - size * 0.47 * pose.scaleY;
-    if (!active) y -= Math.abs(Math.sin(t * 2.3)) * 21;
+    if (!active) y -= Math.abs(Math.sin(t * 2.3)) * layout.idleBounce;
     else if (game.status === 'over') {
       this.fall += dt;
       y += this.fall * this.fall * 500;
@@ -365,7 +404,7 @@ export class Garden {
       c.globalAlpha = 1;
     }
     if (y < h + 100) {
-      ellipse(c, x, base + 32, Math.max(7, size * 0.32 - (base - y) * 0.04), 4, '#72894e25');
+      ellipse(c, x, base + platform.shadowY - 2, Math.max(7, size * 0.32 - (base - y) * 0.04), platform.shadowRadius, '#72894e25');
       potato(c, x, y, size, game.status === 'over' ? this.fall * 2 : t, game.status === 'over', pose);
     }
     if (!active && !mobile) {
@@ -397,13 +436,13 @@ export class Garden {
         c.strokeStyle = '#fff8cf';
         c.lineWidth = 2;
         c.beginPath();
-        c.ellipse(px(p.x), base + 3, cell * (0.32 + (1 - p.life) * 0.32), 5 + (1 - p.life) * 4, 0, 0, TAU);
+        c.ellipse(px(p.x), base + 3 * effectScale, cell * (0.32 + (1 - p.life) * 0.32), (5 + (1 - p.life) * 4) * effectScale, 0, 0, TAU);
         c.stroke();
       } else {
         p.x += p.vx * dt / cell;
         p.y += p.vy * dt;
         p.vy += 180 * dt;
-        ellipse(c, px(p.x), base + p.y, 2.5, 2.5, p.color);
+        ellipse(c, px(p.x), base + p.y, 2.5 * effectScale, 2.5 * effectScale, p.color);
       }
     }
     c.globalAlpha = 1;

@@ -13,6 +13,10 @@ export const TIMING = Object.freeze({
 
 const smoothStep = value => value * value * (3 - 2 * value);
 
+export function platformHeight(cell) {
+  return Math.min(48, Math.max(30, cell * 0.34));
+}
+
 export class Relay {
   constructor(random = Math.random) {
     this.random = random;
@@ -115,9 +119,9 @@ export class Relay {
 
   supportivePlatform() {
     const width = this.cellWidth;
-    const platformHeight = Math.min(48, Math.max(30, width * 0.34));
+    const height = platformHeight(width);
     const toleranceX = Math.max(8 / width, 0.78 * 0.26);
-    const toleranceY = Math.max(8, platformHeight * 0.24) / width;
+    const toleranceY = Math.max(8, height * 0.24) / width;
     return [...this.platforms]
       .filter(p => Math.abs(this.visualCell(p) - this.target) <= toleranceX && this.visualLift(p) <= toleranceY)
       .sort((a, b) => Number(b.cell === this.target) - Number(a.cell === this.target)

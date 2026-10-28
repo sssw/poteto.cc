@@ -1,4 +1,4 @@
-import { potato } from './art.js?v=1.2.0';
+import { potato } from './art.js?v=1.2.1';
 
 export const FORMATS = Object.freeze([
   Object.freeze({ id: 'square', width: 1080, height: 1080 }),
