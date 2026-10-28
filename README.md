@@ -2,7 +2,9 @@
 
 Inspired by [poteto.com](https://poteto.com), I made a browser version of Bouncy Relay: [Poteto.cc](https://poteto.cc).
 
-A little rhythm. A little courage. A very bouncy potato.
+**You jump. I catch.**
+
+Every leap deserves a soft landing.
 
 ## Play
 
@@ -32,6 +34,12 @@ Open `http://127.0.0.1:4173`.
 ## Deploy
 
 Serve the `site` directory as a static website. On Cloudflare Pages, use no framework, no build command, and `site` as the output directory. Set the custom domain to `poteto.cc`.
+
+## Languages and pictures
+
+English is the default. Choose English, Simplified Chinese, Traditional Chinese, Japanese, Korean, Spanish, French, German, Portuguese, or the browser's language from the language menu. The choice is remembered, and language-specific links can be shared.
+
+Use **Create & share**, **Save this moment**, or **Share my score** to make a postcard, game moment, or score card. Export a square (1080 × 1080), story (1080 × 1920), or wide (1200 × 630) PNG. Pictures are rendered on your device. Supported browsers can share the PNG through the system share sheet; downloading and copying a link remain available.
 
 ## Privacy
 

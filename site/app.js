@@ -1,7 +1,9 @@
-import { Relay, TIMING, shareText } from './game.js?v=1.1.0';
-import { Garden } from './art.js?v=1.1.0';
-import { Soundtrack } from './audio.js?v=1.1.0';
-import { bindMoveButton } from './input.js?v=1.1.0';
+import { Relay, TIMING } from './game.js?v=1.2.0';
+import { Garden } from './art.js?v=1.2.0';
+import { Soundtrack } from './audio.js?v=1.2.0';
+import { bindMoveButton } from './input.js?v=1.2.0';
+import { LANGUAGES, normalizeLocale, resolveLocale, t, formatNumber, localeUrl } from './i18n.js?v=1.2.0';
+import { PictureSharing } from './sharing.js?v=1.2.0';
 
 const $ = id => document.getElementById(id);
 const store = {
@@ -15,6 +17,11 @@ const store = {
     try { localStorage.setItem('poteto:' + key, JSON.stringify(value)); } catch { /* Storage may be unavailable. */ }
   },
 };
+const requestedLocale = new URLSearchParams(location.search).get('lang');
+let localeChoice = normalizeLocale(requestedLocale) || store.read('language', 'en');
+let locale = resolveLocale({ requested: requestedLocale, saved: localeChoice, browserLanguages: navigator.languages });
+const tr = (key, params) => t(locale, key, params);
+const number = value => formatNumber(locale, value);
 const game = new Relay();
 const garden = new Garden($('scene'));
 const audio = new Soundtrack();
@@ -22,20 +29,21 @@ let best = Number(store.read('best', 0)) || 0;
 let muted = store.read('muted', false);
 let gentle = store.read('gentle', matchMedia('(prefers-reduced-motion: reduce)').matches);
 let active = false, paused = false, last = 0, lastDraw = 0, overDelay = 0;
-let toastTimer, shareBusy = false;
-$('best').textContent = best;
+let toastTimer, runWasRecord = false, lastMoment = null, captureOnFrame = true;
+const sharePanel = new PictureSharing({ getContext: sharingContext, getLocale: () => locale });
+$('best').textContent = number(best);
 
 function preferences() {
   audio.setMuted(muted);
   garden.reduced = gentle;
   document.body.classList.toggle('gentle', gentle);
-  $('sound').setAttribute('aria-label', muted ? 'Enable sound' : 'Mute sound');
+  $('sound').setAttribute('aria-label', tr(muted ? 'soundOff' : 'soundOn'));
   $('sound').setAttribute('aria-pressed', String(muted));
-  $('sound').title = muted ? 'Sound off' : 'Sound on';
+  $('sound').title = tr(muted ? 'soundOff' : 'soundOn');
   $('music-setting').checked = !muted;
   $('motion-setting').checked = gentle;
 }
-preferences();
+applyLocale();
 function soundStart() { Promise.resolve(audio.start()).catch(() => {}); }
 function toast(message) {
   $('toast').textContent = message;
@@ -43,14 +51,68 @@ function toast(message) {
   clearTimeout(toastTimer);
   toastTimer = setTimeout(() => $('toast').classList.remove('show'), 2400);
 }
+function applyLocale() {
+  document.documentElement.lang = LANGUAGES.find(item => item.code === locale)?.htmlLang || 'en';
+  document.title = tr('pageTitle');
+  document.querySelector('.wordmark').href = locale === 'en' ? '/' : '/?lang=' + encodeURIComponent(locale);
+  document.querySelector('meta[name="description"]').content = tr('metaDescription');
+  document.querySelector('meta[property="og:title"]').content = tr('pageTitle');
+  document.querySelector('meta[property="og:description"]').content = tr('metaDescription');
+  document.querySelector('meta[property="og:url"]').content = localeUrl(locale);
+  document.querySelectorAll('[data-i18n]').forEach(element => { element.textContent = tr(element.dataset.i18n); });
+  document.querySelectorAll('[data-i18n-aria]').forEach(element => { element.setAttribute('aria-label', tr(element.dataset.i18nAria)); });
+  const options = [{ code: 'auto', label: tr('systemLanguage') }, ...LANGUAGES];
+  $('language').replaceChildren(...options.map(item => {
+    const option = document.createElement('option');
+    option.value = item.code;
+    option.textContent = item.label;
+    return option;
+  }));
+  $('language').value = localeChoice === 'auto' ? 'auto' : locale;
+  garden.caption = tr('spudCaption');
+  $('best').textContent = number(best);
+  preferences();
+  updateScore();
+  renderResult();
+  sharePanel.localize();
+}
 function updateScore() {
-  $('score').textContent = game.score;
-  $('jump-label').textContent = game.phase === 'reveal'
-    ? `Revealed: ${game.revealNumber} · In-place bounce`
-    : game.distance === 3 ? 'Next: 3 · +1 then +2' : `Next: ${game.distance} ${game.distance === 1 ? 'space' : 'spaces'}`;
+  $('score').textContent = number(game.score);
+  const label = !active ? tr('adventure')
+    : game.status === 'ready' ? tr('startHint')
+      : game.status === 'over' ? tr('tryAgain')
+        : game.phase === 'reveal' ? tr('revealed', { count: number(game.revealNumber) })
+          : game.distance === 3 ? tr('nextThree')
+            : tr(game.distance === 1 ? 'nextOne' : 'nextMany', { count: number(game.distance) });
+  $('jump-label').textContent = label;
   $('jump-label').dataset.distance = game.phase === 'reveal' ? 'reveal' : game.distance;
   $('jump-label').dataset.phase = game.phase;
 }
+function renderResult() {
+  $('final-score').textContent = number(game.score);
+  $('result-kicker').textContent = tr(runWasRecord ? 'recordKicker' : 'resultKicker');
+  $('result-title').textContent = tr(runWasRecord ? 'recordTitle' : 'resultTitle');
+  $('result-detail').textContent = game.score === 0 ? tr('resultZero')
+    : tr(game.landings === 1 ? 'resultOne' : 'resultMany', { count: number(game.landings) });
+}
+function captureScene() {
+  const source = $('scene');
+  const ratio = source.width / Math.max(1, source.clientWidth);
+  const height = Math.max(1, Math.round(source.height - $('controls').getBoundingClientRect().height * ratio));
+  const snapshot = document.createElement('canvas');
+  snapshot.width = source.width;
+  snapshot.height = height;
+  snapshot.getContext('2d').drawImage(source, 0, 0, source.width, height, 0, 0, source.width, height);
+  return snapshot;
+}
+function sharingContext() {
+  if (active && !paused) advance(performance.now());
+  garden.draw(game, 0, active);
+  const snapshot = game.status === 'over' && lastMoment ? lastMoment : captureScene();
+  setPause(true);
+  return { snapshot, score: game.score, best: Math.max(best, game.score), landings: game.landings };
+}
+
 function pulse(element, className) {
   if (gentle || !element.animate) return;
   for (const animation of element.getAnimations()) {
@@ -70,20 +132,20 @@ function newGame() {
   active = true;
   paused = false;
   overDelay = 0;
+  runWasRecord = false;
+  lastMoment = null;
+  captureOnFrame = true;
   last = lastDraw = performance.now();
   document.body.classList.add('playing');
   $('welcome').hidden = $('result').hidden = $('pause-screen').hidden = true;
   $('pause').hidden = false;
   $('controls').classList.add('teaching');
-  $('share-copy').hidden = true;
-  $('share-status').textContent = '';
   $('left').disabled = $('right').disabled = false;
   $('effects').replaceChildren();
   audio.setIntensity(0);
   audio.setPaused(false);
   soundStart();
   updateScore();
-  $('jump-label').textContent = 'Tap left to start · Match 1';
   $('left').focus({ preventScroll: true });
 }
 function hearts(steps) {
@@ -101,7 +163,7 @@ function hearts(steps) {
   while ($('effects').childElementCount > 24) $('effects').firstElementChild.remove();
 }
 function move(steps) {
-  if (!active || paused || $('settings').open || game.status === 'over') return;
+  if (!active || paused || $('settings').open || sharePanel.dialog.open || game.status === 'over') return;
   advance(performance.now());
   if (game.move(steps)) {
     hearts(steps);
@@ -110,7 +172,7 @@ function move(steps) {
     updateScore();
   }
 }
-function setPause(value) {
+function setPause(value, focus = true) {
   if (!active || game.status === 'over') return;
   if (value && !paused) advance(performance.now());
   if (game.status === 'over') return;
@@ -118,53 +180,27 @@ function setPause(value) {
   audio.setPaused(value);
   $('pause-screen').hidden = !value;
   $('pause').hidden = value;
-  if (value) $('resume').focus({ preventScroll: true });
-  else {
+  if (value) {
+    if (focus) $('resume').focus({ preventScroll: true });
+  } else {
     last = lastDraw = performance.now();
     soundStart();
-    $('left').focus({ preventScroll: true });
+    if (focus) $('left').focus({ preventScroll: true });
   }
 }
 function finish() {
-  const record = game.score > best;
-  if (record) {
+  runWasRecord = game.score > best;
+  if (runWasRecord) {
     best = game.score;
     store.write('best', best);
-    $('best').textContent = best;
+    $('best').textContent = number(best);
   }
-  $('final-score').textContent = game.score;
-  $('result-kicker').textContent = record ? 'A NEW PERSONAL BEST' : 'ONE LOVELY LITTLE RUN';
-  $('result-title').textContent = record ? 'Look at you grow!' : 'Oop. A little tumble.';
-  $('result-detail').textContent = game.score === 0 ? 'Match the number on your potato’s platform.' : `${game.landings} happy ${game.landings === 1 ? 'bounce' : 'bounces'}. Another little adventure?`;
+  renderResult();
   $('result').hidden = false;
   $('pause').hidden = true;
   $('left').disabled = $('right').disabled = true;
   audio.setPaused(true);
   $('retry').focus({ preventScroll: true });
-}
-async function share(score) {
-  if (shareBusy) return;
-  shareBusy = true;
-  const text = score === null ? 'Small potato. Big leap. Play Poteto!' : shareText(score);
-  const url = 'https://poteto.cc/';
-  try {
-    if (navigator.clipboard && window.isSecureContext) {
-      await navigator.clipboard.writeText(`${text} ${url}`);
-      $('share-status').textContent = 'Score and link copied!';
-      toast(score === null ? 'Link copied. Spread a little joy.' : 'Score and link copied!');
-    } else if (navigator.share) {
-      try { await navigator.share({ title: 'Poteto', text, url }); }
-      catch (error) { if (error.name !== 'AbortError') throw error; }
-    } else throw new Error('Clipboard unavailable');
-  } catch {
-    if (score !== null) {
-      $('share-copy').hidden = false;
-      $('share-copy').value = `${text} ${url}`;
-      $('share-copy').focus();
-      $('share-copy').select();
-      $('share-status').textContent = 'Copy your score and link below.';
-    } else toast('Share this link: poteto.cc');
-  } finally { shareBusy = false; }
 }
 
 $('play').addEventListener('click', newGame);
@@ -206,10 +242,30 @@ $('settings').addEventListener('click', event => {
   const bounds = $('settings').getBoundingClientRect();
   if (event.clientX < bounds.left || event.clientX > bounds.right || event.clientY < bounds.top || event.clientY > bounds.bottom) $('settings').close();
 });
-$('share').addEventListener('click', () => share(game.score));
-$('share-home').addEventListener('click', () => { setPause(true); share(null); });
+$('share').addEventListener('click', () => sharePanel.open('score'));
+$('share-home').addEventListener('click', () => sharePanel.open(active ? 'moment' : 'poster'));
+$('save-moment').addEventListener('click', () => sharePanel.open('moment'));
+$('language').addEventListener('focus', () => setPause(true, false));
+$('language').addEventListener('change', () => {
+  setPause(true, false);
+  localeChoice = $('language').value;
+  store.write('language', localeChoice);
+  locale = resolveLocale({ saved: localeChoice, browserLanguages: navigator.languages });
+  const url = new URL(location.href);
+  if (localeChoice === 'auto' || locale === 'en') url.searchParams.delete('lang');
+  else url.searchParams.set('lang', locale);
+  history.replaceState(null, '', url);
+  applyLocale();
+  toast(tr('languageChanged'));
+});
+window.addEventListener('languagechange', () => {
+  if (localeChoice !== 'auto') return;
+  setPause(true, false);
+  locale = resolveLocale({ saved: 'auto', browserLanguages: navigator.languages });
+  applyLocale();
+});
 document.addEventListener('keydown', event => {
-  if (event.repeat || event.metaKey || event.ctrlKey || event.altKey || $('settings').open || ['INPUT', 'TEXTAREA'].includes(event.target.tagName)) return;
+  if (event.repeat || event.metaKey || event.ctrlKey || event.altKey || $('settings').open || sharePanel.dialog.open || ['INPUT', 'TEXTAREA', 'SELECT'].includes(event.target.tagName)) return;
   const key = event.key.toLowerCase();
   if (key === ' ' && event.target.closest('button,a,input') && !event.target.closest('.move')) return;
   if (['arrowleft', 'arrowright', 'a', 'd', ' '].includes(key) && active) {
@@ -229,9 +285,10 @@ window.addEventListener('blur', () => { if (active) setPause(true); });
 function advance(now) {
   const dt = last ? Math.max(0, Math.min((now - last) / 1000, TIMING.maxFrame)) : 0;
   last = Math.max(last, now);
-  if (paused || $('settings').open || document.hidden) return;
+  if (paused || $('settings').open || sharePanel.dialog.open || document.hidden) return;
   const event = game.tick(dt);
   if (event === 'land') {
+    captureOnFrame = true;
     audio.setIntensity(Math.min(1, game.score / 24));
     if (game.phase === 'reveal') audio.reveal(game.revealNumber);
     else audio.land(game.landings);
@@ -249,7 +306,7 @@ function advance(now) {
     audio.fail();
     overDelay = 0.46;
     $('controls').classList.remove('teaching');
-    $('jump-label').textContent = 'Another little adventure?';
+    $('jump-label').textContent = tr('tryAgain');
   } else if (overDelay > 0) {
     overDelay -= dt;
     if (overDelay <= 0) finish();
@@ -261,7 +318,11 @@ function frame() {
   const dt = lastDraw ? Math.max(0, Math.min((now - lastDraw) / 1000, TIMING.maxFrame)) : 0;
   lastDraw = now;
   advance(now);
-  garden.draw(game, paused || $('settings').open || document.hidden ? 0 : dt, active);
+  garden.draw(game, paused || $('settings').open || sharePanel.dialog.open || document.hidden ? 0 : dt, active);
+  if (captureOnFrame && active && game.status !== 'over') {
+    lastMoment = captureScene();
+    captureOnFrame = false;
+  }
   requestAnimationFrame(frame);
 }
 requestAnimationFrame(frame);

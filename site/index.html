@@ -1,32 +1,65 @@
 <!doctype html>
 <html lang="en">
 <head>
-<meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<meta name="theme-color" content="#fbf7ed"><meta name="description" content="A little potato. A little rhythm. Keep the platforms moving and see how far you can bounce. Play Poteto in your browser.">
-<meta property="og:title" content="Poteto — Small potato. Big leap."><meta property="og:description" content="Keep the platforms moving. Keep the little potato bouncing. How far will you go?"><meta property="og:type" content="website"><meta property="og:url" content="https://poteto.cc/"><meta property="og:image" content="https://poteto.cc/social.png"><meta name="twitter:card" content="summary_large_image">
-<link rel="canonical" href="https://poteto.cc/"><link rel="icon" href="/favicon.svg" type="image/svg+xml"><link rel="stylesheet" href="/style.css?v=1.1.0">
-<title>Poteto — Small potato. Big leap.</title>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#fbf7ed">
+<meta name="description" content="Every leap deserves a soft landing. Keep the platforms moving and the little potato bouncing.">
+<meta property="og:title" content="Poteto — You jump. I catch.">
+<meta property="og:description" content="Every leap deserves a soft landing. Keep the platforms moving and the little potato bouncing.">
+<meta property="og:type" content="website"><meta property="og:url" content="https://poteto.cc/">
+<meta property="og:image" content="https://poteto.cc/social.png?v=1.2.0"><meta name="twitter:card" content="summary_large_image">
+<link rel="canonical" href="https://poteto.cc/"><link rel="icon" href="/favicon.svg" type="image/svg+xml">
+<link rel="stylesheet" href="/style.css?v=1.2.0">
+<title>Poteto — You jump. I catch.</title>
 </head>
 <body>
 <div class="app">
-<header><a class="wordmark" href="/" aria-label="Poteto home"><svg viewBox="0 0 42 45" aria-hidden="true"><path d="M13 6C24-2 36 8 37 23S28 43 15 40 0 15 13 6Z" fill="#e8b777" stroke="#74523a" stroke-width="2"/><path d="M14 21v3m12-3v3m-9 5q4 4 7-1" fill="none" stroke="#74523a" stroke-width="2" stroke-linecap="round"/><path d="M19 8q-2-9 8-5-1 6-8 5" fill="#849e5b"/></svg>poteto<span>.cc</span></a><div class="header-right"><span class="edition">A BOUNCY RELAY GAME</span><button class="icon-button" id="sound" aria-label="Mute sound" title="Sound on"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 9h4l5-4v14l-5-4H4zm13-1q4 4 0 8m3-11q7 7 0 14"/></svg></button><button class="icon-button" id="about" aria-label="About and settings" title="About and settings"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="8.5"/><path d="M12 11v6m0-10v1"/></svg></button></div></header>
+<header>
+<a class="wordmark" href="/" aria-label="Poteto home" data-i18n-aria="homeLabel"><svg viewBox="0 0 42 45" aria-hidden="true"><path d="M13 6C24-2 36 8 37 23S28 43 15 40 0 15 13 6Z" fill="#e8b777" stroke="#74523a" stroke-width="2"/><path d="M14 21v3m12-3v3m-9 5q4 4 7-1" fill="none" stroke="#74523a" stroke-width="2" stroke-linecap="round"/><path d="M19 8q-2-9 8-5-1 6-8 5" fill="#849e5b"/></svg>poteto<span>.cc</span></a>
+<div class="header-right">
+<span class="edition" data-i18n="edition">A BOUNCY RELAY GAME</span>
+<label class="language-control"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="8.5"/><ellipse cx="12" cy="12" rx="4" ry="8.5"/><path d="M4 9h16M4 15h16"/></svg><select id="language" aria-label="Language" data-i18n-aria="language"><option value="en">English</option></select></label>
+<button class="icon-button" id="sound" aria-label="Mute sound" title="Sound on"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 9h4l5-4v14l-5-4H4zm13-1q4 4 0 8m3-11q7 7 0 14"/></svg></button>
+<button class="icon-button" id="about" aria-label="About and settings" data-i18n-aria="aboutLabel"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="8.5"/><path d="M12 11v6m0-10v1"/></svg></button>
+</div>
+</header>
 <main>
-<div class="intro" id="intro"><p class="eyebrow"><span>✦</span> A LITTLE JOY, ONE BOUNCE AT A TIME</p><h1>Small potato. <em>Big leap.</em></h1><p class="tagline">A little rhythm. A little courage. A very bouncy potato.</p></div>
-<section class="game" aria-label="Poteto platform relay game">
-<div class="game-top"><div class="score-group"><span class="label">SCORE</span><strong id="score">0</strong></div><div id="jump-label" class="jump-label">A happy little adventure</div><div class="best-group"><span class="label">PERSONAL BEST <span aria-hidden="true">♧</span></span><strong id="best">0</strong></div></div>
-<canvas id="scene" aria-label="A potato bouncing above two movable platforms in a sunny garden"></canvas>
-<div id="welcome" class="welcome"><span class="pill">YOU MOVE THE PLATFORMS</span><h2>Keep the little spud bouncing.</h2><p>Move the back platform ahead.<br>Match the number under your potato.</p><button id="play" class="primary">Let's bounce <span aria-hidden="true">↗</span></button><span class="micro">Catch the rhythm. Keep it bouncing.</span></div>
-<div id="pause-screen" class="overlay" hidden><div class="card"><span class="eyebrow">TAKE A BREATHER</span><h2>Spud on a break.</h2><button id="resume" class="primary">Keep bouncing <span>↗</span></button></div></div>
-<div id="result" class="overlay" hidden><div class="card"><span id="result-kicker" class="eyebrow">ONE LOVELY LITTLE RUN</span><h2 id="result-title">Oop. A little tumble.</h2><div class="result-score" id="final-score">0</div><p id="result-detail">Every bounce is a fresh start.</p><button id="retry" class="primary">One more bounce <span>↗</span></button><button id="share" class="secondary"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 16V3m-5 5 5-5 5 5M5 13v7h14v-7"/></svg>Share my score</button><p id="share-status" role="status" class="micro"></p><input id="share-copy" aria-label="Your score and share link" readonly hidden></div></div>
-<button id="pause" class="pause icon-button" aria-label="Pause game" hidden><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 5v14m6-14v14"/></svg></button>
-<div class="controls" id="controls"><button id="left" class="move left" aria-label="Move the rear platform one space ahead"><span class="keycap">← <span>A</span></span><span class="control-copy"><b>One little step</b><small>Tap left · Move +1</small></span><span class="hearts" aria-hidden="true">♥</span></button><span class="control-divider"></span><button id="right" class="move right" aria-label="Move the rear platform two spaces ahead"><span class="hearts" aria-hidden="true">♥ ♥</span><span class="control-copy"><b>A bigger leap</b><small>Tap right · Move +2</small></span><span class="keycap">→ <span>D</span></span></button></div>
+<div class="intro" id="intro"><p class="eyebrow"><span aria-hidden="true">✦</span> <span data-i18n="eyebrow">A LITTLE TRUST, ONE LEAP AT A TIME</span></p><h1><span data-i18n="heroFirst">You jump.</span> <em data-i18n="heroSecond">I catch.</em></h1><p class="tagline" data-i18n="tagline">A little trust. A little courage. A soft place to land.</p></div>
+<section class="game" aria-label="Poteto platform relay game" data-i18n-aria="gameLabel">
+<div class="game-top"><div class="score-group"><span class="label" data-i18n="score">SCORE</span><strong id="score">0</strong></div><div id="jump-label" class="jump-label">A happy little adventure</div><div class="best-group"><span class="label"><span data-i18n="best">PERSONAL BEST</span> <span aria-hidden="true">♧</span></span><strong id="best">0</strong></div></div>
+<canvas id="scene" aria-label="A potato bouncing above two movable platforms in a sunny garden" data-i18n-aria="sceneLabel"></canvas>
+<div id="welcome" class="welcome"><span class="pill" data-i18n="platformsHint">YOU MOVE THE PLATFORMS</span><h2 data-i18n="welcomeTitle">Keep the little spud bouncing.</h2><p><span data-i18n="welcomeLine1">Move the back platform ahead.</span><br><span data-i18n="welcomeLine2">Match the number under your potato.</span></p><button id="play" class="primary"><span class="button-label" data-i18n="play">Let’s bounce</span><span aria-hidden="true">↗</span></button><span class="micro" data-i18n="rhythm">Catch the rhythm. Keep it bouncing.</span></div>
+<div id="pause-screen" class="overlay" hidden><div class="card"><span class="eyebrow" data-i18n="pauseKicker">TAKE A BREATHER</span><h2 data-i18n="pauseTitle">Spud on a break.</h2><button id="resume" class="primary"><span class="button-label" data-i18n="resume">Keep bouncing</span><span aria-hidden="true">↗</span></button><button id="save-moment" class="secondary" data-i18n="saveMoment">Save this moment</button></div></div>
+<div id="result" class="overlay" hidden><div class="card"><span id="result-kicker" class="eyebrow">ONE LOVELY LITTLE RUN</span><h2 id="result-title">Oop. A little tumble.</h2><div class="result-score" id="final-score">0</div><p id="result-detail"></p><button id="retry" class="primary"><span class="button-label" data-i18n="retry">One more bounce</span><span aria-hidden="true">↗</span></button><button id="share" class="secondary"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 16V3m-5 5 5-5 5 5M5 13v7h14v-7"/></svg><span data-i18n="shareScore">Share my score</span></button></div></div>
+<button id="pause" class="pause icon-button" aria-label="Pause game" data-i18n-aria="pauseLabel" hidden><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 5v14m6-14v14"/></svg></button>
+<div class="controls" id="controls"><button id="left" class="move left" aria-label="Move the rear platform one space ahead" data-i18n-aria="leftLabel"><span class="keycap" aria-hidden="true">← <span>A</span></span><span class="control-copy"><b data-i18n="leftTitle">One little step</b><small data-i18n="leftHint">Tap left · Move +1</small></span><span class="hearts" aria-hidden="true">♥</span></button><span class="control-divider"></span><button id="right" class="move right" aria-label="Move the rear platform two spaces ahead" data-i18n-aria="rightLabel"><span class="hearts" aria-hidden="true">♥ ♥</span><span class="control-copy"><b data-i18n="rightTitle">A bigger leap</b><small data-i18n="rightHint">Tap right · Move +2</small></span><span class="keycap" aria-hidden="true">→ <span>D</span></span></button></div>
 <div id="effects" aria-hidden="true"></div>
 </section>
-<div class="under-game"><span><i class="status-dot"></i> Made for your happy little break</span><span class="desktop-tip">← → to move platforms <span class="dot">·</span> Space to pause</span><button id="share-home" class="text-button">Share Poteto <span aria-hidden="true">↗</span></button></div>
+<div class="under-game"><span><i class="status-dot"></i><span data-i18n="underGame">Made for your happy little break</span></span><span class="desktop-tip"><span data-i18n="keyboardMove">← → to move platforms</span><span class="dot">·</span><span data-i18n="keyboardPause">Space to pause</span></span><button id="share-home" class="text-button"><span data-i18n="shareHome">Create &amp; share</span><span aria-hidden="true">↗</span></button></div>
 </main>
-<footer><span>A small game with a lot of heart.</span><span class="footer-heart" aria-hidden="true">♡</span><span>Happy bouncing.</span></footer>
+<footer><span data-i18n="footerFirst">Every leap deserves a soft landing.</span><span class="footer-heart" aria-hidden="true">♡</span><span data-i18n="footerLast">Happy bouncing.</span></footer>
 </div>
-<dialog id="settings" aria-labelledby="settings-title"><button id="close-settings" class="close icon-button" aria-label="Close settings">×</button><span class="eyebrow">HELLO, LITTLE SPUD</span><h2 id="settings-title">A pocketful of joy.</h2><p>Poteto is a potato-sized take on Bouncy Relay. Move the back platform ahead and keep the bounce going.</p><div class="how"><span><b>← / A</b> One space</span><span><b>→ / D</b> Two spaces</span><span><b>Space</b> Pause</span></div><p class="hint">The number on your platform is your next jump. A 3 needs two quick moves: +1 and +2. A ? reveals a number with an in-place bounce. Keep its platform underneath.</p><label class="setting-row">Music & sounds <input type="checkbox" id="music-setting" checked></label><label class="setting-row">Gentle motion <input type="checkbox" id="motion-setting"></label><div class="about-links"><a href="https://github.com/sssw/poteto.cc" target="_blank" rel="noopener noreferrer">View on GitHub ↗</a><a href="https://apps.apple.com/app/id6764088294" target="_blank" rel="noopener noreferrer">Bouncy Relay for iOS ↗</a></div><p class="privacy">Your best score and preferences stay in this browser. No account needed.</p></dialog>
+<dialog id="settings" aria-labelledby="settings-title">
+<button id="close-settings" class="close icon-button" aria-label="Close settings" data-i18n-aria="settingsClose">×</button><span class="eyebrow" data-i18n="settingsKicker">HELLO, LITTLE SPUD</span><h2 id="settings-title" data-i18n="settingsTitle">A pocketful of joy.</h2><p data-i18n="settingsIntro">Poteto is a potato-sized take on Bouncy Relay. Move the back platform ahead and keep the bounce going.</p>
+<div class="how"><span><b>← / A</b> <span data-i18n="oneSpace">One space</span></span><span><b>→ / D</b> <span data-i18n="twoSpaces">Two spaces</span></span><span><b data-i18n="spaceKey">Space</b> <span data-i18n="pauseWord">Pause</span></span></div><p class="hint" data-i18n="rules">The number on your platform is your next jump. A 3 needs two quick moves: +1 and +2. A ? reveals a number with an in-place bounce. Keep its platform underneath.</p>
+<label class="setting-row"><span data-i18n="music">Music &amp; sounds</span><input type="checkbox" id="music-setting" checked></label><label class="setting-row"><span data-i18n="gentle">Gentle motion</span><input type="checkbox" id="motion-setting"></label>
+<div class="about-links"><a href="https://github.com/sssw/poteto.cc" target="_blank" rel="noopener noreferrer"><span data-i18n="github">View on GitHub</span> ↗</a><a href="https://apps.apple.com/app/id6764088294" target="_blank" rel="noopener noreferrer"><span data-i18n="ios">Bouncy Relay for iOS</span> ↗</a></div><p class="privacy" data-i18n="privacy">Your best score and preferences stay in this browser. No account needed.</p>
+</dialog>
+<dialog id="sharing" class="share-dialog" aria-labelledby="sharing-title">
+<button id="close-sharing" class="close icon-button" aria-label="Close sharing" data-i18n-aria="shareClose">×</button>
+<h2 id="sharing-title" data-i18n="shareTitle">Send a little joy.</h2><p class="share-description" data-i18n="shareDescription">A moment to keep. A little joy to pass on.</p>
+<div class="share-layout">
+<div class="picture-stage" id="picture-stage" aria-busy="true"><img id="picture-preview" alt="Poteto picture preview" data-i18n-aria="previewAlt" hidden><span id="picture-loading" data-i18n="preparing">Preparing your picture…</span></div>
+<div class="picture-options">
+<fieldset class="picture-kinds"><legend data-i18n="cardType">Your picture</legend><label><input type="radio" name="picture-kind" value="score"><span data-i18n="cardScore">Score card</span></label><label><input type="radio" name="picture-kind" value="moment"><span data-i18n="cardMoment">Game moment</span></label><label><input type="radio" name="picture-kind" value="poster" checked><span data-i18n="cardPoster">Postcard</span></label></fieldset>
+<label class="format-label" for="picture-format" data-i18n="imageFormat">Image format</label><select id="picture-format"><option value="square">Square · 1080 × 1080</option><option value="story">Story · 1080 × 1920</option><option value="wide">Wide · 1200 × 630</option></select>
+<div class="picture-actions"><a id="picture-download" class="primary" aria-disabled="true" tabindex="-1" download><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3v12m-5-5 5 5 5-5M5 16v5h14v-5"/></svg><span class="button-label" data-i18n="download">Download PNG</span></a>
+<button id="picture-share" class="secondary" disabled data-i18n="shareImage">Share image</button></div><button id="picture-copy" class="text-button" data-i18n="copyLink">Copy link</button>
+<p class="picture-note" data-i18n="downloadHint">PNG · Created on your device</p><p id="picture-status" role="status" aria-live="polite"></p><input id="picture-link" readonly hidden aria-label="Share link" data-i18n-aria="shareLink">
+</div>
+</div>
+</dialog>
 <div id="toast" role="status"></div>
-<script type="module" src="/app.js?v=1.1.0"></script>
+<script type="module" src="/app.js?v=1.2.0"></script>
 </body></html>

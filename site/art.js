@@ -1,4 +1,4 @@
-import { TIMING } from './game.js?v=1.1.0';
+import { TIMING } from './game.js?v=1.2.0';
 
 const TAU = Math.PI * 2;
 const clamp = (value, low, high) => Math.min(high, Math.max(low, value));
@@ -374,7 +374,7 @@ export class Garden {
       c.rotate(0.12);
       c.fillStyle = '#849467';
       c.font = 'italic 14px Georgia';
-      c.fillText('a very good spud', 0, 0);
+      c.fillText(this.caption || 'a very good spud', 0, 0);
       c.strokeStyle = '#97a57a';
       c.lineWidth = 1;
       c.beginPath();
