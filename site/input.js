@@ -14,10 +14,13 @@ export function bindGameGestures(game, surfaces) {
   // Keep rapid play taps out of browser zoom recognition, including control gaps.
   game.addEventListener('dblclick', event => event.preventDefault());
   for (const surface of surfaces) {
-    // Moves already happen on pointerdown. Cancel only the touch release default,
-    // so WebKit cannot reinterpret a pair of play taps as a zoom gesture.
-    surface.addEventListener('touchend', event => {
+    // Pointer presses own movement. Reserve touch gestures from their start,
+    // before a second contact or a drag can hand control to browser zooming.
+    const reserveTouch = event => {
       if (event.cancelable) event.preventDefault();
-    }, { passive: false });
+    };
+    for (const type of ['touchstart', 'touchmove', 'touchend']) {
+      surface.addEventListener(type, reserveTouch, { passive: false });
+    }
   }
 }

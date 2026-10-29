@@ -1,6 +1,6 @@
 # Poteto.cc
 
-Inspired by [poteto.com](https://poteto.com), I made a browser version of Bouncy Relay: [Poteto.cc](https://poteto.cc).
+[Poteto.cc](https://poteto.cc) is a potato-sized browser version of Bouncy Relay.
 
 **You jump. I catch.**
 
@@ -31,6 +31,8 @@ npm test
 
 Open `http://127.0.0.1:4173`.
 
+For interactive input checks, run `npm run test:browser` and open `http://127.0.0.1:4173/checks/`. The check page is local-only and is excluded from the published site.
+
 ## Deploy
 
 The `poteto-cc-git` Cloudflare Pages project uses its native GitHub integration:
@@ -58,6 +60,6 @@ The game stores only your best score and preferences in your browser. No account
 
 ## License
 
-[PolyForm Noncommercial 1.0.0](LICENSE), the same license used by [sssw/2047](https://github.com/sssw/2047). Noncommercial use, modification, and redistribution are permitted under its terms.
+[PolyForm Noncommercial 1.0.0](LICENSE). Noncommercial use, modification, and redistribution are permitted under its terms.
 
 Required Notice: Copyright 2026 sssw.

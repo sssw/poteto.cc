@@ -1,9 +1,9 @@
-import { Relay, TIMING } from './game.js?v=1.3.2';
-import { Garden } from './art.js?v=1.3.2';
-import { Soundtrack } from './audio.js?v=1.3.2';
-import { bindMoveButton, bindGameGestures } from './input.js?v=1.3.2';
-import { LANGUAGES, normalizeLocale, resolveLocale, t, formatNumber, localeUrl } from './i18n.js?v=1.3.2';
-import { PictureSharing } from './sharing.js?v=1.3.2';
+import { Relay, TIMING } from './game.js?v=1.3.3';
+import { Garden } from './art.js?v=1.3.3';
+import { Soundtrack } from './audio.js?v=1.3.3';
+import { bindMoveButton, bindGameGestures } from './input.js?v=1.3.3';
+import { LANGUAGES, normalizeLocale, resolveLocale, t, formatNumber, localeUrl } from './i18n.js?v=1.3.3';
+import { PictureSharing } from './sharing.js?v=1.3.3';
 
 const $ = id => document.getElementById(id);
 const store = {

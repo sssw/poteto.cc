@@ -1,0 +1,32 @@
+<!doctype html>
+<html lang="en">
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Input compatibility checks</title>
+<link rel="stylesheet" href="/style.css">
+<style>
+body{padding:24px;max-width:1000px;margin:auto;font:16px/1.5 system-ui}
+h1{font:700 26px system-ui;letter-spacing:0}button{padding:14px;border-radius:10px}
+pre{white-space:pre-wrap;overflow-wrap:anywhere;background:#eef1df;padding:16px;font-size:13px}
+.game{height:190px;margin:20px 0}.controls{height:100%;position:relative}.move{border-radius:0}
+.scroll-check{max-height:130px;overflow:auto;border:1px solid #aaa;padding:12px;touch-action:manipulation}
+</style>
+<h1>Input compatibility checks</h1>
+<p id="browser"></p>
+<button id="run" class="primary">Run synthetic sequence checks</button>
+<pre id="report">Not run</pre>
+<h2>Native input pad</h2>
+<p>Tap quickly, hold one side while pressing the other, or rotate while holding. Each press adds one command; releases add none.</p>
+<section class="game" id="pad">
+  <div class="controls" id="controls">
+    <button class="move" id="left">Move +1</button>
+    <span class="control-divider"></span>
+    <button class="move" id="right">Move +2</button>
+  </div>
+</section>
+<pre id="native-result"></pre>
+<button id="reset">Reset counts</button>
+<pre id="viewport"></pre>
+<div class="scroll-check"><p>Scroll check outside the input pad.</p><p>This area retains ordinary scrolling and pinch zoom.</p><p>Menu and sharing controls should remain usable.</p><p>End of scroll check.</p></div>
+<script type="module" src="/checks/runner.js"></script>
+</html>
