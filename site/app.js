@@ -1,9 +1,9 @@
-import { Relay, TIMING } from './game.js?v=1.3.1';
-import { Garden } from './art.js?v=1.3.1';
-import { Soundtrack } from './audio.js?v=1.3.1';
-import { bindMoveButton } from './input.js?v=1.3.1';
-import { LANGUAGES, normalizeLocale, resolveLocale, t, formatNumber, localeUrl } from './i18n.js?v=1.3.1';
-import { PictureSharing } from './sharing.js?v=1.3.1';
+import { Relay, TIMING } from './game.js?v=1.3.2';
+import { Garden } from './art.js?v=1.3.2';
+import { Soundtrack } from './audio.js?v=1.3.2';
+import { bindMoveButton, bindGameGestures } from './input.js?v=1.3.2';
+import { LANGUAGES, normalizeLocale, resolveLocale, t, formatNumber, localeUrl } from './i18n.js?v=1.3.2';
+import { PictureSharing } from './sharing.js?v=1.3.2';
 
 const $ = id => document.getElementById(id);
 const store = {
@@ -207,6 +207,7 @@ function finish() {
 
 $('play').addEventListener('click', newGame);
 $('retry').addEventListener('click', newGame);
+bindGameGestures(document.querySelector('.game'), [$('scene'), $('controls')]);
 bindMoveButton($('left'), () => move(1));
 bindMoveButton($('right'), () => move(2));
 $('scene').addEventListener('pointerdown', event => {

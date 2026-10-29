@@ -9,3 +9,15 @@ export function bindMoveButton(button, move) {
     if (!button.disabled && event.detail === 0 && !event.pointerType) move();
   });
 }
+
+export function bindGameGestures(game, surfaces) {
+  // Keep rapid play taps out of browser zoom recognition, including control gaps.
+  game.addEventListener('dblclick', event => event.preventDefault());
+  for (const surface of surfaces) {
+    // Moves already happen on pointerdown. Cancel only the touch release default,
+    // so WebKit cannot reinterpret a pair of play taps as a zoom gesture.
+    surface.addEventListener('touchend', event => {
+      if (event.cancelable) event.preventDefault();
+    }, { passive: false });
+  }
+}
