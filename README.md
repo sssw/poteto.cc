@@ -33,7 +33,18 @@ Open `http://127.0.0.1:4173`.
 
 ## Deploy
 
-Serve the `site` directory as a static website. On Cloudflare Pages, use no framework, no build command, and `site` as the output directory. Set the custom domain to `poteto.cc`.
+The `poteto-cc-git` Cloudflare Pages project uses its native GitHub integration:
+
+- Repository: `sssw/poteto.cc`
+- Production branch: `main`
+- Framework preset: None
+- Build command: `npm test`
+- Build output directory: `site`
+- Root directory: repository root
+- Environment variable: `SKIP_DEPENDENCY_INSTALL=true`
+- Custom domain: `poteto.cc`
+
+Node.js 22 is selected by `.node-version`. Each push runs the test suite before publishing the static files. A failed test prevents that deployment from replacing the live site. No dependency installation or asset compilation is required.
 
 ## Languages and pictures
 
