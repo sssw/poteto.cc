@@ -21,6 +21,7 @@ export class Relay {
   constructor(random = Math.random) {
     this.random = random;
     this.cellWidth = 96;
+    this.verticalScale = 1;
     this.reset();
   }
 
@@ -123,7 +124,7 @@ export class Relay {
     const toleranceX = Math.max(8 / width, 0.78 * 0.26);
     const toleranceY = Math.max(8, height * 0.24) / width;
     return [...this.platforms]
-      .filter(p => Math.abs(this.visualCell(p) - this.target) <= toleranceX && this.visualLift(p) <= toleranceY)
+      .filter(p => Math.abs(this.visualCell(p) - this.target) <= toleranceX && this.visualLift(p) * this.verticalScale <= toleranceY)
       .sort((a, b) => Number(b.cell === this.target) - Number(a.cell === this.target)
         || Math.abs(this.visualCell(a) - this.target) - Math.abs(this.visualCell(b) - this.target))[0];
   }

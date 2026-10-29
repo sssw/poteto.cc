@@ -1,16 +1,16 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { Relay, TIMING } from '../site/game.js';
-import { Garden, sceneLayout, followCamera, reframeCamera, PLAYER_HALF_CELL } from '../site/art.js';
+import { Garden, sceneLayout, followCamera, reframeCamera, PLAYER_HALF_CELL, trackedCameraView } from '../site/art.js';
 
 const scenes = [
   [294, 330, 83], [294, 396, 83], [350, 672, 83],
-  [510, 240, 64], [756, 310, 64], [690, 750, 89],
+  [510, 268, 56], [756, 338, 56], [690, 750, 89],
   [1184, 697, 89], [1184, 750, 89], [1920, 1000, 89],
 ];
 const rates = [30, 60, 120, 144];
-const fastest = Math.max(1 / 0.62, 2 / 0.78, 3 / 1.175);
-const speedLimit = fastest * 1.25;
+// A moving platform reaches 1.5 / durationPerCell at the midpoint of its eased flight.
+const speedLimit = 1.5 / TIMING.platformPerCell * 1.05;
 
 function preparedGame(pattern = [1, 3, 2, 3, 3, 0]) {
   const game = new Relay(() => 0.99);
@@ -36,48 +36,60 @@ function coverLanding(game) {
 
 function assertVisible(camera, game, layout) {
   const player = layout.origin + (game.position - 1 - camera) * layout.cell;
-  const target = layout.origin + (game.target - 1 - camera) * layout.cell;
-  assert.ok(player - PLAYER_HALF_CELL * layout.cell >= layout.margin - 0.01, 'Player leaves the left edge');
-  assert.ok(player + PLAYER_HALF_CELL * layout.cell <= layout.width - layout.margin + 0.01, 'Player leaves the right edge');
-  assert.ok(target + 0.45 * layout.cell <= layout.width - layout.margin + 0.01, 'Landing leaves the right edge');
+  const playerHalf = PLAYER_HALF_CELL * layout.verticalCell;
+  assert.ok(player - playerHalf >= layout.margin - 0.01, 'Player leaves the left edge');
+  assert.ok(player + playerHalf <= layout.width - layout.margin + 0.01, 'Player leaves the right edge');
+  for (const platform of game.platforms) {
+    const x = layout.origin + (game.visualCell(platform) - 1 - camera) * layout.cell;
+    assert.ok(x - layout.platform.width / 2 >= layout.margin - 0.01, 'An actual platform leaves the left edge');
+    assert.ok(x + layout.platform.width / 2 <= layout.width - layout.margin + 0.01, 'An actual platform leaves the right edge');
+  }
 }
 
 function run(layout, fps, seconds = 45, pattern) {
   const game = preparedGame(pattern);
   game.cellWidth = layout.cell;
+  game.verticalScale = layout.verticalCell / layout.cell;
   let camera = 0;
+  let previousGoal = trackedCameraView(game, layout).goal;
   let maxStep = 0;
   const transitions = new Set();
   for (let frame = 0; frame < seconds * fps; frame++) {
     coverLanding(game);
-    const previousPosition = game.position;
     const previousDistance = game.distance;
     const previousPhase = game.phase;
     const previousCamera = camera;
     const event = game.tick(1 / fps);
     assert.notEqual(event, 'miss');
-    camera = followCamera(camera, game.position, game.target, layout, 1 / fps, previousPosition);
+    const view = trackedCameraView(game, layout);
+    camera = followCamera(camera, view, 1 / fps, previousGoal);
+    previousGoal = view.goal;
     const step = camera - previousCamera;
-    assert.ok(step >= -1e-12, 'Camera reverses direction');
-    assert.ok(step <= speedLimit / fps + 1e-9,
+    assert.ok(Math.abs(step) <= speedLimit / fps + 1e-9,
       `Camera moved ${step * layout.cell} px in one ${fps} Hz frame at ${layout.width}px`);
-    maxStep = Math.max(maxStep, step);
+    maxStep = Math.max(maxStep, Math.abs(step));
     assertVisible(camera, game, layout);
     if (event && game.distance === 3) {
       transitions.add(previousPhase === 'reveal' ? 'reveal→3' : `${previousDistance}→3`);
-      assert.equal(followCamera(camera, game.position, game.target, layout, 0, game.position), camera,
+      assert.equal(followCamera(camera, view, 0), camera,
         'A landing target change must not move a paused camera');
     }
   }
   return { game, camera, maxStep, transitions };
 }
 
-test('zero elapsed time cannot move the camera when a new three-space landing appears', () => {
+test('future three-space hints cannot move the tracked view or a paused camera', () => {
   for (const dimensions of scenes) {
     const layout = sceneLayout(...dimensions);
-    for (const dt of [0, -1, NaN, Infinity]) {
-      assert.equal(followCamera(10, 12, 15, layout, dt, 12), 10);
-    }
+    const game = new Relay();
+    game.position = 12;
+    game.platforms = [{ cell: 10, from: 10, motion: 1 }, { cell: 12, from: 12, motion: 1 }];
+    game.target = 13;
+    const before = trackedCameraView(game, layout);
+    game.target = 15;
+    const after = trackedCameraView(game, layout);
+    assert.deepEqual(after, before, 'Only rendered body bounds determine camera framing');
+    for (const dt of [0, -1, NaN, Infinity]) assert.equal(followCamera(10, after, dt), 10);
   }
 });
 
@@ -108,25 +120,22 @@ test('mixed native gameplay has matching camera positions across common display 
   }
 });
 
-test('linear movement integration is independent of frame rate even at speed changes', () => {
-  for (const dimensions of scenes) {
-    const layout = sceneLayout(...dimensions);
-    const after = fps => {
-      let camera = 0, position = 1;
-      for (const [distance, duration] of [[1, 0.62], [3, 1.175], [0, 0.62], [2, 0.78], [3, 1.175]]) {
-        const start = position;
-        for (let time = 0; time < duration - 1e-10;) {
-          const dt = Math.min(1 / fps, duration - time);
-          time += dt;
-          const next = start + distance * time / duration;
-          camera = followCamera(camera, next, start + distance, layout, dt, position);
-          position = next;
-        }
+test('linear tracked-view integration is independent of frame rate even at speed changes', () => {
+  const after = fps => {
+    let camera = 0, goal = 0;
+    for (const [distance, duration] of [[1, 0.62], [3, 1.175], [0, 0.62], [2, 0.78], [3, 1.175]]) {
+      const start = goal;
+      for (let time = 0; time < duration - 1e-10;) {
+        const dt = Math.min(1 / fps, duration - time);
+        time += dt;
+        const next = start + distance * time / duration;
+        camera = followCamera(camera, { goal: next, maximum: next + 2 }, dt, goal);
+        goal = next;
       }
-      return camera;
-    };
-    assert.ok(Math.abs(after(30) - after(144)) < 1e-10);
-  }
+    }
+    return camera;
+  };
+  assert.ok(Math.abs(after(30) - after(144)) < 1e-10);
 });
 
 test('framing on a real resize is separate from frozen or resumed gameplay', () => {
@@ -134,25 +143,24 @@ test('framing on a real resize is separate from frozen or resumed gameplay', () 
   const result = run(original, 60, 15);
   for (const dimensions of scenes) {
     const layout = sceneLayout(...dimensions);
-    const camera = reframeCamera(result.camera, result.game.position, result.game.target, layout);
+    const view = trackedCameraView(result.game, layout);
+    const camera = reframeCamera(result.camera, view);
     assertVisible(camera, result.game, layout);
-    for (let frame = 0; frame < 120; frame++) {
-      assert.equal(followCamera(camera, result.game.position, result.game.target, layout, 0), camera);
-    }
-    const nextPosition = result.game.position + fastest / 60;
-    const resumed = followCamera(camera, nextPosition, result.game.target + 3, layout, 1 / 60, result.game.position);
-    assert.ok(resumed >= camera);
-    assert.ok(resumed - camera <= speedLimit / 60);
+    for (let frame = 0; frame < 120; frame++) assert.equal(followCamera(camera, view, 0), camera);
+    const resumed = followCamera(camera, view, 1 / 60);
+    assert.ok(Math.abs(resumed - camera) <= speedLimit / 60, 'Resuming after a resize must not launch a rapid camera correction');
+    assertVisible(resumed, result.game, layout);
   }
 });
 
 function mockGarden(t, dimensions) {
   let bounds = { width: dimensions[0], height: dimensions[1], top: 0, left: 0 };
+  let controlHeight = dimensions[2];
   const gradient = { addColorStop() {} };
   const context = new Proxy({ createLinearGradient: () => gradient }, {
     get(target, property) { return property in target ? target[property] : () => {}; },
   });
-  const controls = { getBoundingClientRect: () => ({ height: dimensions[2] }) };
+  const controls = { getBoundingClientRect: () => ({ height: controlHeight }) };
   const canvas = {
     width: 0, height: 0,
     ownerDocument: { getElementById: id => id === 'controls' ? controls : null },
@@ -164,7 +172,7 @@ function mockGarden(t, dimensions) {
     Object.defineProperty(globalThis, name, { configurable: true, writable: true, value });
     t.after(() => original ? Object.defineProperty(globalThis, name, original) : delete globalThis[name]);
   }
-  return { garden: new Garden(canvas), resize(width, height) { bounds = { ...bounds, width, height }; } };
+  return { garden: new Garden(canvas), resize(width, height, controlsHeight = controlHeight) { bounds = { ...bounds, width, height }; controlHeight = controlsHeight; } };
 }
 
 test('the renderer never invokes resize framing for ordinary landing or reveal transitions', t => {
@@ -177,7 +185,7 @@ test('the renderer never invokes resize framing for ordinary landing or reveal t
     const event = game.tick(1 / 120);
     const previous = garden.camera;
     garden.draw(game, 1 / 120, true);
-    assert.ok(garden.camera - previous <= speedLimit / 120 + 1e-9);
+    assert.ok(Math.abs(garden.camera - previous) <= speedLimit / 120 + 1e-9);
     if (event) {
       events++;
       const stopped = garden.camera;
@@ -196,27 +204,57 @@ test('the renderer never invokes resize framing for ordinary landing or reveal t
   game.reset();
   garden.draw(game, TIMING.maxFrame, true);
   assert.equal(garden.camera, 0);
-  assert.equal(garden.cameraPosition, 1);
+  assert.equal(garden.cameraGoal, trackedCameraView(game, sceneLayout(690, 750, 83)).goal);
 });
 
-test('uneven rendering intervals do not add a camera jump at a three-space transition', () => {
+test('uneven rendering intervals keep actual platforms visible without a three-space camera snap', () => {
   const intervals = [1 / 144, 1 / 60, 1 / 120, 1 / 30, TIMING.maxFrame];
   for (const dimensions of scenes) {
     const layout = sceneLayout(...dimensions);
     const game = preparedGame();
     game.cellWidth = layout.cell;
+    game.verticalScale = layout.verticalCell / layout.cell;
     let camera = 0;
+    let previousGoal = trackedCameraView(game, layout).goal;
     for (let frame = 0; frame < 1800; frame++) {
       coverLanding(game);
       const dt = intervals[frame % intervals.length];
-      const previousPosition = game.position;
       assert.notEqual(game.tick(dt), 'miss');
-      const next = followCamera(camera, game.position, game.target, layout, dt, previousPosition);
-      assert.ok(next >= camera);
-      assert.ok(next - camera <= speedLimit * dt + 1e-9);
+      const view = trackedCameraView(game, layout);
+      const next = followCamera(camera, view, dt, previousGoal);
+      assert.ok(Math.abs(next - camera) <= speedLimit * dt + 1e-9);
       assertVisible(next, game, layout);
       camera = next;
+      previousGoal = view.goal;
     }
     assert.ok(game.landings > 30);
   }
+});
+
+
+test('portrait to compact landscape and back keeps rendering and landing geometry synchronized', t => {
+  const { garden, resize } = mockGarden(t, [350, 672, 83]);
+  const game = preparedGame();
+  garden.draw(game, 0, true);
+  for (const dimensions of [[350, 672, 83], [510, 268, 56], [350, 672, 83]]) {
+    resize(...dimensions);
+    garden.resize();
+    garden.draw(game, 0, true);
+    const layout = sceneLayout(...dimensions);
+    assert.equal(game.cellWidth, layout.cell);
+    assert.equal(game.verticalScale, layout.verticalCell / layout.cell);
+    if (dimensions[0] === 510) assert.ok(game.verticalScale < 1);
+    else assert.equal(game.verticalScale, 1);
+    assertVisible(garden.camera, game, layout);
+    const frozen = { camera: garden.camera, score: game.score, elapsed: game.elapsed, position: game.position };
+    for (let frame = 0; frame < 120; frame++) garden.draw(game, 0, true);
+    assert.deepEqual({ camera: garden.camera, score: game.score, elapsed: game.elapsed, position: game.position }, frozen);
+    for (let frame = 0; frame < 180; frame++) {
+      coverLanding(game);
+      assert.notEqual(game.tick(1 / 60), 'miss');
+      garden.draw(game, 1 / 60, true);
+      assertVisible(garden.camera, game, layout);
+    }
+  }
+  assert.ok(game.landings > 6);
 });

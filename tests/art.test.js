@@ -1,26 +1,43 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { sceneLayout, followCamera, arcHeight, platformMetrics, PLAYER_HALF_CELL, reframeCamera } from '../site/art.js';
+import { sceneLayout, followCamera, arcHeight, platformMetrics, PLAYER_HALF_CELL, reframeCamera, trackedCameraView } from '../site/art.js';
 import { Relay, platformHeight } from '../site/game.js';
 
 const scenes = [
   { name: 'short phone', dimensions: [294, 330, 83] },
   { name: 'small phone', dimensions: [294, 396, 83] },
   { name: 'phone', dimensions: [350, 672, 83] },
-  { name: 'small landscape', dimensions: [510, 240, 64] },
-  { name: 'wide landscape', dimensions: [756, 310, 64] },
+  { name: 'small landscape', dimensions: [510, 268, 56] },
+  { name: 'wide landscape', dimensions: [756, 338, 56] },
   { name: 'tablet', dimensions: [690, 750, 89] },
   { name: 'desktop', dimensions: [1184, 697, 89] },
   { name: 'tall desktop', dimensions: [1184, 750, 89] },
   { name: 'wide canvas', dimensions: [1920, 1000, 89] },
 ];
 
-function assertFraming(camera, position, target, layout, message) {
-  const playerX = layout.origin + (position - 1 - camera) * layout.cell;
-  const targetX = layout.origin + (target - 1 - camera) * layout.cell;
-  assert.ok(playerX - layout.cell * PLAYER_HALF_CELL >= layout.margin - 0.01, `${message}: player clips left`);
-  assert.ok(playerX + layout.cell * PLAYER_HALF_CELL <= layout.width - layout.margin + 0.01, `${message}: player clips right`);
-  assert.ok(targetX + layout.cell * 0.45 <= layout.width - layout.margin + 0.01, `${message}: target clips right`);
+function assertFraming(camera, game, layout, message) {
+  const playerX = layout.origin + (game.position - 1 - camera) * layout.cell;
+  const playerHalf = PLAYER_HALF_CELL * layout.verticalCell;
+  assert.ok(playerX - playerHalf >= layout.margin - 0.01, `${message}: player clips left`);
+  assert.ok(playerX + playerHalf <= layout.width - layout.margin + 0.01, `${message}: player clips right`);
+  for (const platform of game.platforms) {
+    const x = layout.origin + (game.visualCell(platform) - 1 - camera) * layout.cell;
+    assert.ok(x - layout.platform.width / 2 >= layout.margin - 0.01, `${message}: actual platform clips left`);
+    assert.ok(x + layout.platform.width / 2 <= layout.width - layout.margin + 0.01, `${message}: actual platform clips right`);
+  }
+}
+
+function mixedGame() {
+  const game = new Relay(() => 0.99);
+  game.generatedThrough = 4096;
+  for (let cell = 0; cell <= 4096; cell++) game.course.set(cell, 1);
+  for (let cell = 2, i = 0; cell < 4000; i++) {
+    const kind = [1, 3, 2, 3, 3, 0][i % 6];
+    game.course.set(cell, kind);
+    cell += kind || 3;
+  }
+  game.move(1);
+  return game;
 }
 
 function finishFlight(game, fps = 120) {
@@ -44,13 +61,15 @@ test('roomy playfields enlarge the potato, platforms and labels together without
   const phone = sceneLayout(350, 672, 83);
   const tablet = sceneLayout(690, 750, 89);
   const desktop = sceneLayout(1184, 697, 89);
-  const compact = sceneLayout(510, 240, 64);
+  const compact = sceneLayout(510, 268, 56);
   assert.ok(desktop.cell >= 160 && desktop.cell <= 190);
   assert.ok(tablet.cell >= 115 && tablet.cell < desktop.cell);
   assert.ok(desktop.platform.width > 112 * 0.78 * 1.4, 'Desktop platforms must grow materially beyond the former cap');
   assert.ok(tablet.platform.width > (690 / 8.2) * 0.78 * 1.3);
   assert.ok(phone.cell <= 70, 'A narrow phone retains space for the relay');
-  assert.ok(compact.cell < phone.cell, 'Short landscapes must be limited by their height');
+  assert.ok(compact.cell >= 78 && compact.cell <= 132, 'Compact landscape spacing follows the native horizontal range');
+  assert.ok(compact.verticalCell < compact.cell, 'Short landscapes flatten the arc instead of crushing horizontal spacing');
+  assert.ok(compact.platform.width >= 60 && compact.verticalCell * 0.77 >= 35);
   for (const key of ['width', 'height', 'badge', 'label', 'ghostLabel', 'effectScale']) {
     assert.ok(desktop.platform[key] > phone.platform[key], `${key} should grow with the scene`);
   }
@@ -77,7 +96,7 @@ test('opening layout keeps both relay platforms and the two available destinatio
   for (const scene of scenes) {
     const layout = sceneLayout(...scene.dimensions);
     const game = new Relay();
-    const camera = reframeCamera(0, game.position, game.target, layout);
+    const camera = reframeCamera(0, trackedCameraView(game, layout));
     const screenX = cell => layout.origin + (cell - 1 - camera) * layout.cell;
     for (const platform of game.platforms) {
       const x = screenX(platform.cell);
@@ -107,8 +126,8 @@ test('opening layout keeps both relay platforms and the two available destinatio
 test('all jump arcs fit below the HUD and the full platform shadow stays above the controls', () => {
   for (const scene of scenes) {
     const layout = sceneLayout(...scene.dimensions);
-    const { base, cell, hud, floor, platform } = layout;
-    const size = cell * 0.77;
+    const { base, cell, verticalCell, hud, floor, platform } = layout;
+    const size = verticalCell * 0.77;
     for (const distance of [0, 1, 2, 3]) {
       for (let frame = 0; frame <= 120; frame++) {
         const progress = frame / 120;
@@ -119,7 +138,7 @@ test('all jump arcs fit below the HUD and the full platform shadow stays above t
         const tilt = Math.sin(progress * Math.PI * 2) * 0.035;
         const headExtent = size * (0.87 * scaleY * Math.cos(tilt) + 0.60 * scaleX * Math.abs(Math.sin(tilt)));
         const top = base - size * 0.47 * scaleY - headExtent
-          - Math.sin(progress * Math.PI) * arcHeight(distance, distance === 0 ? 'reveal' : 'jump', cell);
+          - Math.sin(progress * Math.PI) * arcHeight(distance, distance === 0 ? 'reveal' : 'jump', verticalCell);
         assert.ok(top >= hud - 1, `${scene.name}: jump ${distance} intersects the HUD`);
       }
     }
@@ -128,90 +147,90 @@ test('all jump arcs fit below the HUD and the full platform shadow stays above t
   }
 });
 
-test('available width and height increase piece size smoothly through former breakpoints', () => {
-  for (const height of [240, 400, 750]) {
-    let previous = 0;
+test('available width and height change game geometry continuously through orientation thresholds', () => {
+  for (const height of [240, 400, 450, 480, 750]) {
+    let previous = null;
     for (let width = 294; width <= 1920; width++) {
-      const cell = sceneLayout(width, height, 83).cell;
-      assert.ok(cell + 1e-10 >= previous, `Pieces shrink at width ${width}`);
-      if (previous) assert.ok(cell - previous < 0.3, `A width breakpoint jumps at ${width}`);
-      previous = cell;
+      const layout = sceneLayout(width, height, 83);
+      if (previous) {
+        assert.ok(Math.abs(layout.cell - previous.cell) < 1, `Horizontal spacing jumps at width ${width}`);
+        assert.ok(Math.abs(layout.verticalCell - previous.verticalCell) < 1, `Vertical framing jumps at width ${width}`);
+      }
+      previous = layout;
     }
   }
-  for (const width of [350, 690, 1184]) {
-    let previous = 0;
+  for (const width of [350, 400, 510, 690, 1184]) {
+    let previous = null;
     for (let floor = 150; floor <= 850; floor++) {
-      const cell = sceneLayout(width, floor + 89, 89).cell;
-      assert.ok(cell + 1e-10 >= previous, `Pieces shrink at playfield height ${floor}`);
-      if (previous) assert.ok(cell - previous < 0.6, `A height breakpoint jumps at ${floor}`);
-      previous = cell;
+      const layout = sceneLayout(width, floor + 89, 89);
+      if (previous) {
+        assert.ok(layout.cell + 1e-9 >= previous.cell, `Extra height shrinks horizontal spacing at ${width}×${floor}`);
+        assert.ok(layout.verticalCell + 1e-9 >= previous.verticalCell, `Extra height shrinks the visible arc at ${width}×${floor}`);
+        assert.ok(Math.abs(layout.cell - previous.cell) < 1, `Horizontal spacing jumps at height ${floor}`);
+        assert.ok(Math.abs(layout.verticalCell - previous.verticalCell) < 1, `Vertical framing jumps at height ${floor}`);
+      }
+      previous = layout;
     }
   }
 });
 
-test('forward camera keeps complete players and targets visible through long mixed jumps and reveals', () => {
+test('camera keeps actual relay platforms and the potato visible through mixed native jumps', () => {
   for (const scene of scenes) {
     const layout = sceneLayout(...scene.dimensions);
-    for (const fps of [30, 60, 120, 144]) {
-      let camera = 0;
-      let start = 1;
-      for (let jump = 0; jump < 80; jump++) {
-        const distance = [1, 3, 2, 0][jump % 4];
-        const target = start + distance;
-        const duration = [0.62, 0.62, 0.78, 1.175][distance];
-        let previousPosition = start;
-        for (let time = 0; time < duration - 1e-10;) {
-          const dt = Math.min(1 / fps, duration - time);
-          time += dt;
-          const position = start + distance * time / duration;
-          const previous = camera;
-          camera = followCamera(camera, position, target, layout, dt, previousPosition);
-          previousPosition = position;
-          assert.ok(camera >= previous, 'The camera must never pull the world backward');
-          assertFraming(camera, position, target, layout, `${scene.name} at ${fps} Hz`);
-        }
-        start = target;
-      }
+    const game = mixedGame();
+    game.cellWidth = layout.cell;
+    game.verticalScale = layout.verticalCell / layout.cell;
+    let camera = 0;
+    let previousGoal = trackedCameraView(game, layout).goal;
+    for (let frame = 0; frame < 3600; frame++) {
+      coverLanding(game);
+      assert.notEqual(game.tick(1 / 60), 'miss');
+      const view = trackedCameraView(game, layout);
+      camera = followCamera(camera, view, 1 / 60, previousGoal);
+      previousGoal = view.goal;
+      assertFraming(camera, game, layout, scene.name);
     }
   }
 });
 
-test('camera response to a fixed view does not depend on display refresh rate', () => {
+test('camera response to a fixed tracked view does not depend on display refresh rate', () => {
   const layout = sceneLayout(1184, 697, 89);
+  const game = new Relay();
+  game.position = 6;
+  game.platforms = [{ cell: 4, from: 4, motion: 1 }, { cell: 6, from: 6, motion: 1 }];
+  const view = trackedCameraView(game, layout);
   const after = fps => {
-    let camera = reframeCamera(0, 5, 7, layout);
-    for (let frame = 0; frame < fps; frame++) camera = followCamera(camera, 5, 7, layout, 1 / fps);
+    let camera = reframeCamera(0, view);
+    for (let frame = 0; frame < fps; frame++) camera = followCamera(camera, view, 1 / fps);
     return camera;
   };
   assert.ok(Math.abs(after(30) - after(60)) < 1e-12);
   assert.ok(Math.abs(after(60) - after(120)) < 1e-12);
 });
 
-test('every pair of supported layouts can resize during flight or a paused reveal without clipping', () => {
+test('resizing paused or moving gameplay reframes actual bodies without leaving either platform behind', () => {
   for (const scene of scenes) {
-    const original = sceneLayout(...scene.dimensions);
+    const layout = sceneLayout(...scene.dimensions);
+    const game = mixedGame();
+    game.cellWidth = layout.cell;
+    game.verticalScale = layout.verticalCell / layout.cell;
     let camera = 0;
-    let start = 1;
-    for (let jump = 0; jump < 24; jump++) {
-      const distance = [1, 2, 3, 0][jump % 4];
-      const target = start + distance;
-      const duration = [0.62, 0.62, 0.78, 1.175][distance];
-      let previousPosition = start;
-      for (let time = 0; time < duration - 1e-10;) {
-        const dt = Math.min(1 / 60, duration - time);
-        time += dt;
-        const position = start + distance * time / duration;
-        camera = followCamera(camera, position, target, original, dt, previousPosition);
-        previousPosition = position;
-        for (const destination of scenes) {
-          const layout = sceneLayout(...destination.dimensions);
-          const rotated = reframeCamera(camera, position, target, layout);
-          assert.ok(rotated >= camera);
-          assertFraming(rotated, position, target, layout, `${scene.name} to ${destination.name}, jump ${distance}`);
-          assert.equal(followCamera(rotated, position, target, layout, 0), rotated, 'A paused camera must settle without drifting');
-        }
+    let previousGoal = trackedCameraView(game, layout).goal;
+    for (let frame = 0; frame < 1800; frame++) {
+      coverLanding(game);
+      assert.notEqual(game.tick(1 / 60), 'miss');
+      const view = trackedCameraView(game, layout);
+      camera = followCamera(camera, view, 1 / 60, previousGoal);
+      previousGoal = view.goal;
+      if (frame % 15 !== 0) continue;
+      for (const destination of scenes) {
+        const resized = sceneLayout(...destination.dimensions);
+        const nextView = trackedCameraView(game, resized);
+        assert.equal(nextView.allFit, true);
+        const framed = reframeCamera(camera, nextView);
+        assertFraming(framed, game, resized, `${scene.name} to ${destination.name}`);
+        assert.equal(followCamera(framed, nextView, 0), framed);
       }
-      start = target;
     }
   }
 });
@@ -222,7 +241,9 @@ test('mystery reveals retain their native arc and timing at every display scale'
   assert.ok(Math.abs(arcHeight(3, 'jump', 100) - 114) < 1e-12);
   for (const scene of scenes) {
     const game = new Relay(() => 0);
-    game.cellWidth = sceneLayout(...scene.dimensions).cell;
+    const layout = sceneLayout(...scene.dimensions);
+    game.cellWidth = layout.cell;
+    game.verticalScale = layout.verticalCell / layout.cell;
     game.course.set(2, 0);
     game.generatedThrough = 2;
     game.move(1);
@@ -242,7 +263,9 @@ test('rescaled collision geometry preserves long playable runs with all platform
       seed = (Math.imul(seed, 1664525) + 1013904223) >>> 0;
       return seed / 2 ** 32;
     });
-    game.cellWidth = sceneLayout(...scene.dimensions).cell;
+    const layout = sceneLayout(...scene.dimensions);
+    game.cellWidth = layout.cell;
+    game.verticalScale = layout.verticalCell / layout.cell;
     game.move(1);
     const kinds = new Set();
     let reveals = 0;

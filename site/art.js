@@ -1,4 +1,4 @@
-import { TIMING, platformHeight } from './game.js?v=1.2.2';
+import { TIMING, platformHeight } from './game.js?v=1.3.0';
 
 const TAU = Math.PI * 2;
 const clamp = (value, low, high) => Math.min(high, Math.max(low, value));
@@ -44,28 +44,30 @@ export function sceneLayout(width, height, controlHeight, active = true, welcome
   const hud = clamp(floor * 0.22, 44, 96);
   const maximumArc = Math.max(TIMING.revealHeight, TIMING.jumpHeight + TIMING.extraJumpHeight * 2);
   const verticalSpan = maximumArc + 0.77 * 1.42;
-  const verticalBudget = floor - hud - 10;
-  let verticalCell = verticalBudget / (verticalSpan + 0.34);
-  if (verticalCell * 0.34 < 30) verticalCell = (verticalBudget - 30) / verticalSpan;
-  else if (verticalCell * 0.34 > 48) verticalCell = (verticalBudget - 48) / verticalSpan;
   const horizontalCell = Math.max(1, width - 2 * margin) / (3 + PLAYER_HALF_CELL + 0.45);
-  const preferredCell = active ? Math.min(180, width / 5.5)
+  const ease = value => { const t = clamp(value, 0, 1); return t * t * (3 - 2 * t); };
+  const compactWeight = active ? ease((width / height - 1.2) / 0.6)
+    * ease((480 - height) / 120) * ease((width - 340) / 110) : 0;
+  const compactLandscape = compactWeight > 0.5;
+  const normalCell = Math.min(180, width / 5.5);
+  const nativeLandscapeCell = Math.min(normalCell, clamp(width * 0.145, 78, 132));
+  const preferredCell = active ? normalCell + (nativeLandscapeCell - normalCell) * compactWeight
     : Math.min(mobile ? 82 : 112, width / (mobile ? 5.5 : 8.2));
-  const cell = active
-    ? Math.max(1, Math.min(preferredCell, horizontalCell, Math.max(1, verticalCell)))
-    : preferredCell;
+  const cell = Math.max(1, Math.min(preferredCell, horizontalCell));
   const platform = platformMetrics(cell);
+  const verticalUnit = active
+    ? Math.max(1, Math.min(cell, (floor - hud - platform.height - platform.bottomPadding) / verticalSpan)) : cell;
   const bottom = Math.max(1, floor - platform.height - platform.bottomPadding);
   const stackedWelcome = !active && mobile && welcomeBottom > 0;
   const idleBounce = mobile ? 10 : 21;
   const base = active
-    ? Math.min(bottom, Math.max(floor * 0.69, hud + cell * verticalSpan))
+    ? Math.min(bottom, Math.max(floor * 0.69, hud + verticalUnit * verticalSpan))
     : Math.min(bottom, Math.max(floor * (mobile ? 0.83 : 0.71), stackedWelcome ? welcomeBottom + 12 + 70 * 1.42 + idleBounce : 0));
   const origin = active
     ? Math.max(margin + cell * 1.4, Math.min(width * 0.22, cell * 2.5))
     : width * (mobile ? 0.36 : 0.20);
   const idleSize = stackedWelcome ? Math.min(70, Math.max(0, (base - welcomeBottom - 12 - idleBounce) / 1.42)) : mobile ? 70 : 100;
-  return { width, height, floor, base, cell, origin, margin, hud, mobile, platform, idleSize, idleBounce };
+  return { width, height, floor, base, cell, origin, margin, hud, mobile, platform, idleSize, idleBounce, verticalCell: verticalUnit, compactLandscape };
 }
 
 export function arcHeight(distance, phase, cell) {
@@ -73,39 +75,48 @@ export function arcHeight(distance, phase, cell) {
     : TIMING.jumpHeight + (distance - 1) * TIMING.extraJumpHeight) * cell;
 }
 
-export function cameraTuning(layout) {
+export function trackedCameraView(game, layout) {
   const { width, cell, origin, margin } = layout;
-  const spare = (width - margin - cell * 0.45 - origin) / cell - 3;
-  const lead = clamp(1.00 - spare, 0, 0.80);
-  const tripleDuration = (TIMING.shortJump + 2 * (TIMING.longJump - TIMING.shortJump)) / TIMING.tripleSpeed;
-  const fastestJump = Math.max(1 / TIMING.shortJump, 2 / TIMING.longJump, 3 / tripleDuration);
-  return {
-    anchor: 1.4 - lead,
-    maxSpeed: fastestJump,
-    response: Math.min(0.22, Math.max(0.04, (spare + lead - 0.40) * 0.70 / fastestJump)),
-  };
+  const platformHalf = layout.platform.width / cell / 2;
+  const positions = game.platforms.map(platform => game.visualCell(platform));
+  const playerHalf = PLAYER_HALF_CELL * layout.verticalCell / cell;
+  const playerLeft = game.position - playerHalf;
+  const playerRight = game.position + playerHalf;
+  let left = Math.min(playerLeft, ...positions.map(x => x - platformHalf));
+  let right = Math.max(playerRight, ...positions.map(x => x + platformHalf));
+  const available = (width - 2 * margin) / cell;
+  const allFit = right - left <= available;
+  if (!allFit) {
+    // Preserve the potato and rear platform before an unreachable forward platform.
+    const rear = Math.min(...positions);
+    left = Math.min(playerLeft, rear - platformHalf);
+    right = Math.max(playerRight, rear + platformHalf);
+    if (right - left > available) { left = playerLeft; right = playerRight; }
+  }
+  const minimum = right - 1 - (width - margin - origin) / cell;
+  const maximum = left - 1 + (origin - margin) / cell;
+  const softMinimum = minimum + 0.45;
+  const softMaximum = maximum - 0.45;
+  const preferred = game.position - 1 + (origin - width * 0.43) / cell;
+  const goal = softMinimum <= softMaximum
+    ? clamp(preferred, softMinimum, softMaximum) : (minimum + maximum) / 2;
+  return { minimum: Math.max(0, minimum), maximum: Math.max(0, maximum), goal: Math.max(0, goal), allFit, left, right };
 }
 
-export function reframeCamera(current, position, target, layout) {
-  const { width, cell, origin, margin } = layout;
-  const minimum = Math.max(0, target - 1 - (width - margin - cell * 0.45 - origin) / cell);
-  const maximum = Math.max(0, position - 1 - (margin + cell * PLAYER_HALF_CELL - origin) / cell);
-  const { anchor, response, maxSpeed } = cameraTuning(layout);
-  const settled = position - anchor - maxSpeed * response * 1.25;
-  return Math.max(current, Math.min(Math.max(minimum, settled), maximum));
+export function reframeCamera(current, view) {
+  return clamp(current, view.minimum, Math.max(view.minimum, view.maximum));
 }
 
-export function followCamera(current, position, _target, layout, dt, previousPosition = position) {
+export function followCamera(current, view, dt, previousGoal = view.goal) {
   if (!Number.isFinite(dt) || dt <= 0) return current;
-  const { anchor, response } = cameraTuning(layout);
-  // Track continuous world position, not a landing target that jumps by up to three cells.
-  // The layout reserves long-jump space before the next platform's number is revealed.
-  const goal = Math.max(0, position - anchor);
-  const previousGoal = Math.max(0, previousPosition - anchor);
-  const velocity = (goal - previousGoal) / dt;
+  // Like the native game, track actual sprite bounds; never snap to a new jump target.
+  const response = view.goal >= current ? 0.22 : 0.22 * 1.65;
+  const velocity = (view.goal - previousGoal) / dt;
   const decay = Math.exp(-dt / response);
-  const next = goal - velocity * response + (current - previousGoal + velocity * response) * decay;
-  return Math.max(current, next);
+  const next = view.goal - velocity * response
+    + (current - previousGoal + velocity * response) * decay;
+  // The rear edge is monotonic during forward play, so this guard cannot create a reverse jump.
+  return clamp(next, 0, view.maximum);
 }
 
 export function potato(c, x, y, size, t = 0, fall = false, pose = {}) {
@@ -210,7 +221,7 @@ export class Garden {
     this.controls = canvas.ownerDocument.getElementById('controls');
     this.welcome = canvas.ownerDocument.getElementById('welcome');
     this.camera = 0;
-    this.cameraPosition = 1;
+    this.cameraGoal = null;
     this.cameraLayout = null;
     this.particles = [];
     this.fall = 0;
@@ -225,7 +236,7 @@ export class Garden {
 
   resetCamera(position = 1) {
     this.camera = 0;
-    this.cameraPosition = position;
+    this.cameraGoal = null;
     this.cameraLayout = null;
   }
 
@@ -269,18 +280,23 @@ export class Garden {
     this.time += this.reduced ? 0 : dt;
     const t = this.time;
     const layout = sceneLayout(w, h, this.controlHeight, active, this.welcomeBottom);
-    const { mobile, floor, base, cell, origin, platform } = layout;
+    const { mobile, floor, base, cell, origin, platform, verticalCell } = layout;
     const effectScale = platform.effectScale;
     this.cell = cell;
     game.cellWidth = cell;
+    game.verticalScale = verticalCell / cell;
+    const view = trackedCameraView(game, layout);
     const changedView = !this.cameraLayout || this.cameraLayout.width !== w
       || this.cameraLayout.height !== h || this.cameraLayout.cell !== cell;
-    if (!active || game.status === 'ready') this.camera = 0;
+    if (!active || game.status === 'ready') { this.camera = 0; this.cameraGoal = view.goal; }
     else {
-      if (changedView) this.camera = reframeCamera(this.camera, game.position, game.target, layout);
-      this.camera = followCamera(this.camera, game.position, game.target, layout, dt, this.cameraPosition);
+      if (changedView) {
+        this.camera = reframeCamera(this.camera, view);
+        this.cameraGoal = view.goal;
+      }
+      this.camera = followCamera(this.camera, view, dt, this.cameraGoal ?? view.goal);
     }
-    this.cameraPosition = game.position;
+    this.cameraGoal = view.goal;
     this.cameraLayout = { width: w, height: h, cell };
     const px = value => origin + (value - 1 - this.camera) * cell;
     c.clearRect(0, 0, w, h);
@@ -375,7 +391,7 @@ export class Garden {
     }
     for (const p of game.platforms) {
       const x = px(game.visualCell(p));
-      const y = base - game.visualLift(p) * cell;
+      const y = base - game.visualLift(p) * verticalCell;
       const pw = platform.width;
       const colors = p.number === 0 ? ['#d0e9e6', '#82aaa9', '#345d61']
         : p.number === 1 ? ['#d4e3ab', '#8ba76a', '#34472c']
@@ -407,7 +423,7 @@ export class Garden {
       c.fillText(p.number === 0 ? '?' : p.number, x, badgeY + platform.label * 0.34);
     }
     const x = px(active ? game.position : 1);
-    const size = active ? cell * 0.77 : layout.idleSize;
+    const size = active ? verticalCell * 0.77 : layout.idleSize;
     const progress = game.progress;
     const squash = !this.reduced && active && game.status === 'playing' ? Math.max(0, 1 - progress / 0.22) : 0;
     const stretch = !this.reduced && active && game.status === 'playing' ? Math.sin(progress * Math.PI) * 0.06 : 0;
@@ -416,7 +432,7 @@ export class Garden {
       scaleY: 1 - squash * 0.14 + stretch,
       tilt: this.reduced ? 0 : active ? Math.sin(progress * TAU) * 0.035 : Math.sin(t * 1.7) * 0.045,
     };
-    const arc = arcHeight(game.distance, game.phase, cell);
+    const arc = arcHeight(game.distance, game.phase, verticalCell);
     let y = base - size * 0.47 * pose.scaleY;
     if (!active) y -= Math.abs(Math.sin(t * 2.3)) * layout.idleBounce;
     else if (game.status === 'over') {
