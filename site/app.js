@@ -1,9 +1,9 @@
-import { Relay, TIMING } from './game.js?v=1.3.0';
-import { Garden } from './art.js?v=1.3.0';
-import { Soundtrack } from './audio.js?v=1.3.0';
-import { bindMoveButton } from './input.js?v=1.3.0';
-import { LANGUAGES, normalizeLocale, resolveLocale, t, formatNumber, localeUrl } from './i18n.js?v=1.3.0';
-import { PictureSharing } from './sharing.js?v=1.3.0';
+import { Relay, TIMING } from './game.js?v=1.3.1';
+import { Garden } from './art.js?v=1.3.1';
+import { Soundtrack } from './audio.js?v=1.3.1';
+import { bindMoveButton } from './input.js?v=1.3.1';
+import { LANGUAGES, normalizeLocale, resolveLocale, t, formatNumber, localeUrl } from './i18n.js?v=1.3.1';
+import { PictureSharing } from './sharing.js?v=1.3.1';
 
 const $ = id => document.getElementById(id);
 const store = {
@@ -125,6 +125,7 @@ function pulse(element, className) {
   animation.id = 'poteto-pulse';
 }
 function newGame() {
+  document.body.classList.remove('keyboard-navigation');
   game.reset();
   garden.resetCamera();
   garden.fall = 0;
@@ -166,6 +167,7 @@ function move(steps) {
   if (!active || paused || $('settings').open || sharePanel.dialog.open || game.status === 'over') return;
   advance(performance.now());
   if (game.move(steps)) {
+    document.body.classList.remove('keyboard-navigation');
     hearts(steps);
     pulse($(steps === 1 ? 'left' : 'right'), 'tapped');
     audio.move(steps);
@@ -264,7 +266,11 @@ window.addEventListener('languagechange', () => {
   locale = resolveLocale({ saved: 'auto', browserLanguages: navigator.languages });
   applyLocale();
 });
+document.addEventListener('pointerdown', () => {
+  document.body.classList.remove('keyboard-navigation');
+}, { capture: true });
 document.addEventListener('keydown', event => {
+  if (event.key === 'Tab') document.body.classList.add('keyboard-navigation');
   if (event.repeat || event.metaKey || event.ctrlKey || event.altKey || $('settings').open || sharePanel.dialog.open || ['INPUT', 'TEXTAREA', 'SELECT'].includes(event.target.tagName)) return;
   const key = event.key.toLowerCase();
   if (key === ' ' && event.target.closest('button,a,input') && !event.target.closest('.move')) return;

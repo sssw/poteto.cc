@@ -1,4 +1,4 @@
-import { TIMING, platformHeight } from './game.js?v=1.3.0';
+import { TIMING, platformHeight } from './game.js?v=1.3.1';
 
 const TAU = Math.PI * 2;
 const clamp = (value, low, high) => Math.min(high, Math.max(low, value));
@@ -406,11 +406,6 @@ export class Garden {
       c.beginPath();
       c.roundRect(x - pw / 2, y - 2, pw, platform.top, Math.min(platform.radius * 0.8, pw / 3));
       c.fill();
-      if (active && p.cell === game.target && game.status === 'playing') {
-        c.strokeStyle = '#fffbed';
-        c.lineWidth = 2 * effectScale;
-        c.stroke();
-      }
       c.fillStyle = '#ffffff60';
       c.beginPath();
       c.roundRect(x - pw / 2 + 5 * effectScale, y + effectScale, Math.max(1, pw - 10 * effectScale), 3 * effectScale, 1.5 * effectScale);
