@@ -179,9 +179,13 @@ test('unavailable or malformed reads do not fabricate zero counts or retry rapid
   assert.equal(calls,1); assert.deepEqual(f.statuses,['unavailable']); assert.equal(f.rendered.length,0);
 });
 
-test('a missing public verification configuration discards the optional batch without requests', async t => {
-  const f = fixture(t); f.stats.completed(1,1000); await f.stats.flush();
-  assert.equal(f.stats.queue.length,0); assert.equal(f.verified.length,0); assert.equal(f.fetched.length,0);
+test('missing verification configuration preserves the queue without spinning timers or fetching automatically', async t => {
+  const f = fixture(t); f.stats.completed(1,1000);
+  assert.equal(f.scheduled.length,1);
+  f.scheduled[0].callback();
+  await f.stats.flush(); await f.stats.flush();
+  assert.equal(f.stats.queue.length,1); assert.equal(f.stats.timer,null);
+  assert.equal(f.scheduled.length,1); assert.equal(f.verified.length,0); assert.equal(f.fetched.length,0);
 });
 
 test('hidden pages do not start verification or submission', async t => {
@@ -259,4 +263,67 @@ test('slow verification followed by fast verification still leaves a full minute
   now=epoch+72999; await f.stats.flush(); assert.equal(submitted.length,1);
   now=epoch+73000; await f.stats.flush();
   assert.equal(submitted.length,2); assert.ok(submitted[1]-submitted[0]>=62000);
+});
+
+test('the CDN Age header consumes the same fifteen-minute cache lifetime as browser storage', async t => {
+  let calls=0;
+  const f=fixture(t,{ fetcher:async()=>{
+    calls++;
+    return new Response(JSON.stringify(snapshot()),{headers:{Age:calls===1?'840':'0'}});
+  } });
+  await f.stats.refresh();
+  assert.equal(calls,1);
+  assert.equal(f.stats.fetchedAt,epoch-840000);
+  assert.equal(f.stats.lastRead,epoch-840000);
+  assert.equal(JSON.parse(f.storage.getItem(KEY+':snapshot')).at,epoch-840000);
+  f.setNow(epoch+59000); await f.stats.refresh(); assert.equal(calls,1);
+  f.setNow(epoch+60000); await f.stats.refresh(); assert.equal(calls,2);
+  assert.equal(f.stats.fetchedAt,epoch+60000);
+  await f.stats.refresh(); assert.equal(calls,2);
+});
+
+for (const [label,body] of [['HTML','<!doctype html><title>Poteto</title>'],['empty object','{}'],
+  ['refusal','{"accepted":false}'],['string flag','{"accepted":"true"}'],['null','null']]) {
+  test(`an HTTP 200 ${label} response is not treated as an accepted upload`,async t=>{
+    let calls=0;
+    const f=fixture(t,{fetcher:async()=>{calls++;return new Response(body,{status:200});}});
+    f.stats.snapshot=snapshot(); f.stats.completed(1,1000); await f.stats.flush();
+    assert.equal(f.stats.nextWrite,epoch+3600000);
+    assert.equal(f.stats.queue.length,0);
+    await f.stats.flush(); assert.equal(calls,1);
+  });
+}
+
+test('a game completed before the initial snapshot arrives is uploaded after configuration becomes available',async t=>{
+  let finishRead;
+  const calls=[];
+  const f=fixture(t,{fetcher:async(url,init)=>{
+    calls.push({url,init});
+    if(url==='/api/stats') return new Promise(resolve=>{finishRead=resolve;});
+    return new Response('{"accepted":true}');
+  }});
+  const loading=f.stats.refresh();
+  f.stats.completed(1,1000); f.scheduled[0].callback();
+  assert.equal(f.stats.queue.length,1); assert.equal(f.stats.timer,null);
+  assert.equal(calls.length,1); assert.equal(f.verified.length,0);
+  finishRead(new Response(JSON.stringify(snapshot()))); await loading;
+  assert.equal(f.scheduled.length,2); assert.equal(f.scheduled[1].delay,1500);
+  assert.equal(calls.length,1);
+  await f.stats.flush();
+  assert.equal(calls.length,2); assert.equal(calls[1].url,'/api/stats/submit');
+  assert.deepEqual(JSON.parse(calls[1].init.body).runs,[{score:1,ms:1000}]);
+});
+
+test('an unavailable initial read is retried only by a later explicit refresh after fifteen minutes',async t=>{
+  let reads=0;
+  const f=fixture(t,{fetcher:async()=>{
+    reads++;
+    if(reads===1) throw Error('offline');
+    return new Response(JSON.stringify(snapshot()));
+  }});
+  await f.stats.refresh(); f.stats.completed(1,1000); f.scheduled[0].callback();
+  assert.equal(reads,1); assert.equal(f.stats.timer,null); assert.equal(f.stats.queue.length,1);
+  f.setNow(epoch+899999); await f.stats.refresh(); assert.equal(reads,1);
+  f.setNow(epoch+900000); await f.stats.refresh();
+  assert.equal(reads,2); assert.equal(f.scheduled.length,2); assert.equal(f.stats.queue.length,1);
 });

@@ -29,8 +29,10 @@ export class GameStats {
       const response=await this.fetcher('/api/stats',{credentials:'omit',signal:AbortSignal.timeout(5000)});
       const data=await response.json();
       if(!response.ok || !validSnapshot(data)) throw Error('unavailable');
-      this.snapshot=data; this.fetchedAt=this.now();
-      write(this.storage,KEY+':snapshot',{data,at:this.fetchedAt}); this.view?.render(data);
+      this.snapshot=data;
+      const age=Math.max(0,Math.min(900,Number(response.headers.get('Age'))||0))*1000;
+      this.fetchedAt=this.now()-age; this.lastRead=this.fetchedAt;
+      write(this.storage,KEY+':snapshot',{data,at:this.fetchedAt}); this.view?.render(data); this.schedule();
     } catch {
       if(this.snapshot) this.view?.render(this.snapshot,{stale:true}); else this.view?.setStatus('unavailable');
     } finally { this.reading=false; }
@@ -58,7 +60,7 @@ export class GameStats {
     if(this.destroyed || this.busy || !this.enabled || !this.queue.length || globalThis.document?.hidden) return;
     const stored=Number(read(this.storage,KEY+':nextWrite',0))||0;
     if(this.now()<Math.max(this.nextWrite,Math.min(stored,this.now()+3600000))) { this.schedule(); return; }
-    if(!this.snapshot?.sitekey) { this.queue=[]; return; }
+    if(!this.snapshot?.sitekey) return;
     this.busy=true;
     this.nextWrite=this.now()+INTERVAL;
     write(this.storage,KEY+':nextWrite',this.nextWrite);
@@ -71,7 +73,7 @@ export class GameStats {
       const response=await this.fetcher('/api/stats/submit',{method:'POST',credentials:'omit',
         headers:{'Content-Type':'application/json'},body:JSON.stringify({player:this.player,batch,runs,token}),
         signal:AbortSignal.any([controller.signal,AbortSignal.timeout(8000)])});
-      if(!response.ok) throw Error('unavailable');
+      if(!response.ok || (await response.json()).accepted !== true) throw Error('unavailable');
       this.nextWrite=this.now()+INTERVAL+2000;
       write(this.storage,KEY+':nextWrite',this.nextWrite);
     } catch {

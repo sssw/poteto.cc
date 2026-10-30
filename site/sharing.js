@@ -1,5 +1,5 @@
-import { renderPicture, FORMATS } from './pictures.js?v=1.4.1';
-import { t, formatNumber, localeUrl } from './i18n.js?v=1.4.1';
+import { renderPicture, FORMATS } from './pictures.js?v=1.4.2';
+import { t, formatNumber, localeUrl } from './i18n.js?v=1.4.2';
 
 export function canShareFile(navigator, file) {
   try {
