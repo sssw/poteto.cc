@@ -1,5 +1,5 @@
-import { formatNumber, normalizeLocale } from './i18n.js?v=1.4.0';
-import { statsText } from './stats-copy.js?v=1.4.0';
+import { formatNumber, normalizeLocale } from './i18n.js?v=1.4.1';
+import { statsText } from './stats-copy.js?v=1.4.1';
 
 export const SCORE_RANGES = Object.freeze(['0–4', '5–9', '10–19', '20–39', '40–79', '80–159', '160–319', '320+']);
 const isCount = value => Number.isSafeInteger(value) && value >= 0;

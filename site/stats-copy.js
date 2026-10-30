@@ -1,4 +1,4 @@
-import { normalizeLocale } from './i18n.js?v=1.4.0';
+import { normalizeLocale } from './i18n.js?v=1.4.1';
 
 export const statsMessages = {
   en: {

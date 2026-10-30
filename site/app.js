@@ -1,11 +1,11 @@
-import { Relay, TIMING } from './game.js?v=1.4.0';
-import { Garden } from './art.js?v=1.4.0';
-import { Soundtrack } from './audio.js?v=1.4.0';
-import { bindMoveButton, bindGameGestures } from './input.js?v=1.4.0';
-import { LANGUAGES, normalizeLocale, resolveLocale, t, formatNumber, localeUrl } from './i18n.js?v=1.4.0';
-import { StatsView } from './stats-view.js?v=1.4.0';
-import { GameStats } from './stats.js?v=1.4.0';
-import { PictureSharing } from './sharing.js?v=1.4.0';
+import { Relay, TIMING } from './game.js?v=1.4.1';
+import { Garden } from './art.js?v=1.4.1';
+import { Soundtrack } from './audio.js?v=1.4.1';
+import { bindMoveButton, bindGameGestures } from './input.js?v=1.4.1';
+import { LANGUAGES, normalizeLocale, resolveLocale, t, formatNumber, localeUrl } from './i18n.js?v=1.4.1';
+import { StatsView } from './stats-view.js?v=1.4.1';
+import { GameStats } from './stats.js?v=1.4.1';
+import { PictureSharing } from './sharing.js?v=1.4.1';
 
 const $ = id => document.getElementById(id);
 const store = {

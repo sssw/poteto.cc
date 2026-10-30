@@ -101,7 +101,7 @@ async function verifyBrowser(sitekey,batch,signal) {
   return new Promise(resolve=>{
     let settled=false;
     const done=token=>{if(settled)return;settled=true;clearTimeout(timer);signal.removeEventListener('abort',cancel);removeVerification();resolve(token);};
-    const cancel=()=>done(null), timer=setTimeout(cancel,15000);
+    const cancel=()=>done(null), timer=setTimeout(cancel,120000);
     signal.addEventListener('abort',cancel,{once:true});
     removeVerification(); container=document.createElement('div'); container.className='stats-verification';
     document.querySelector('.under-game').after(container);

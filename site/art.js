@@ -1,4 +1,4 @@
-import { TIMING, platformHeight } from './game.js?v=1.4.0';
+import { TIMING, platformHeight } from './game.js?v=1.4.1';
 
 const TAU = Math.PI * 2;
 const clamp = (value, low, high) => Math.min(high, Math.max(low, value));
