@@ -4,10 +4,16 @@ import { resolve, extname, sep } from 'node:path';
 const root = resolve('site');
 const checksRoot = resolve('tests/browser');
 const checksEnabled = process.argv.includes('--checks');
+const statsFixture = process.argv.includes('--stats-fixture');
 const types = { '.html':'text/html', '.js':'text/javascript', '.css':'text/css', '.svg':'image/svg+xml', '.png':'image/png', '.webmanifest':'application/manifest+json' };
 http.createServer(async (req, res) => {
   try {
     const pathname = decodeURIComponent(new URL(req.url, 'http://localhost').pathname);
+    if (pathname === '/api/stats' && statsFixture) {
+      const body = await readFile(resolve('tests/fixtures/stats.json'));
+      res.writeHead(200, { 'Content-Type': 'application/json', 'Cache-Control': 'no-store' });
+      res.end(body); return;
+    }
     const checks = checksEnabled && pathname.startsWith('/checks/');
     const directory = checks ? checksRoot : root;
     const relative = checks ? pathname.slice('/checks'.length) : pathname;

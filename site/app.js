@@ -1,9 +1,11 @@
-import { Relay, TIMING } from './game.js?v=1.3.3';
-import { Garden } from './art.js?v=1.3.3';
-import { Soundtrack } from './audio.js?v=1.3.3';
-import { bindMoveButton, bindGameGestures } from './input.js?v=1.3.3';
-import { LANGUAGES, normalizeLocale, resolveLocale, t, formatNumber, localeUrl } from './i18n.js?v=1.3.3';
-import { PictureSharing } from './sharing.js?v=1.3.3';
+import { Relay, TIMING } from './game.js?v=1.4.0';
+import { Garden } from './art.js?v=1.4.0';
+import { Soundtrack } from './audio.js?v=1.4.0';
+import { bindMoveButton, bindGameGestures } from './input.js?v=1.4.0';
+import { LANGUAGES, normalizeLocale, resolveLocale, t, formatNumber, localeUrl } from './i18n.js?v=1.4.0';
+import { StatsView } from './stats-view.js?v=1.4.0';
+import { GameStats } from './stats.js?v=1.4.0';
+import { PictureSharing } from './sharing.js?v=1.4.0';
 
 const $ = id => document.getElementById(id);
 const store = {
@@ -32,6 +34,14 @@ let active = false, paused = false, last = 0, lastDraw = 0, overDelay = 0;
 let toastTimer, runWasRecord = false, lastMoment = null, captureOnFrame = true;
 const sharePanel = new PictureSharing({ getContext: sharingContext, getLocale: () => locale });
 $('best').textContent = number(best);
+let statsView, stats, playedMs = 0;
+try {
+  statsView = new StatsView({ getLocale: () => locale });
+  const enabled = store.read('stats-enabled', true) && navigator.globalPrivacyControl !== true;
+  $('stats-enabled').checked = enabled;
+  stats = new GameStats({ view: statsView, enabled });
+  void stats.refresh();
+} catch { /* Statistics are independent of the game. */ }
 
 function preferences() {
   audio.setMuted(muted);
@@ -75,6 +85,7 @@ function applyLocale() {
   updateScore();
   renderResult();
   sharePanel.localize();
+  statsView?.localize();
 }
 function updateScore() {
   $('score').textContent = number(game.score);
@@ -127,6 +138,7 @@ function pulse(element, className) {
 function newGame() {
   document.body.classList.remove('keyboard-navigation');
   game.reset();
+  playedMs = 0;
   garden.resetCamera();
   garden.fall = 0;
   garden.particles = [];
@@ -191,6 +203,7 @@ function setPause(value, focus = true) {
   }
 }
 function finish() {
+  try { stats?.completed(game.score, playedMs); } catch { /* The result is always playable. */ }
   runWasRecord = game.score > best;
   if (runWasRecord) {
     best = game.score;
@@ -230,6 +243,11 @@ $('music-setting').addEventListener('change', () => {
   preferences();
   if (!muted) soundStart();
 });
+$('stats-enabled').addEventListener('change', () => {
+  const enabled = $('stats-enabled').checked;
+  store.write('stats-enabled', enabled);
+  stats?.setEnabled(enabled);
+});
 $('motion-setting').addEventListener('change', () => {
   gentle = $('motion-setting').checked;
   store.write('gentle', gentle);
@@ -238,6 +256,7 @@ $('motion-setting').addEventListener('change', () => {
 $('about').addEventListener('click', () => {
   setPause(true);
   $('settings').showModal();
+  void stats?.refresh();
 });
 $('close-settings').addEventListener('click', () => $('settings').close());
 $('settings').addEventListener('click', event => {
@@ -286,13 +305,15 @@ document.addEventListener('visibilitychange', () => {
   if (document.hidden) { setPause(true); audio.setPaused(true); }
   else if (!active) audio.setPaused(false);
 });
-window.addEventListener('pagehide', () => audio.setPaused(true));
+window.addEventListener('pagehide', () => { audio.setPaused(true); stats?.destroy(); });
+window.addEventListener('pageshow', () => { stats?.resume(); if (!active) void stats?.refresh(); });
 window.addEventListener('blur', () => { if (active) setPause(true); });
 
 function advance(now) {
   const dt = last ? Math.max(0, Math.min((now - last) / 1000, TIMING.maxFrame)) : 0;
   last = Math.max(last, now);
   if (paused || $('settings').open || sharePanel.dialog.open || document.hidden) return;
+  if (active && game.status === 'playing') playedMs += dt * 1000;
   const event = game.tick(dt);
   if (event === 'land') {
     captureOnFrame = true;

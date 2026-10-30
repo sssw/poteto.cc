@@ -8,9 +8,9 @@
 <meta property="og:title" content="Poteto — You jump. I catch.">
 <meta property="og:description" content="Every leap deserves a soft landing. Keep the platforms moving and the little potato bouncing.">
 <meta property="og:type" content="website"><meta property="og:url" content="https://poteto.cc/">
-<meta property="og:image" content="https://poteto.cc/social.png?v=1.3.3"><meta name="twitter:card" content="summary_large_image">
+<meta property="og:image" content="https://poteto.cc/social.png?v=1.4.0"><meta name="twitter:card" content="summary_large_image">
 <link rel="canonical" href="https://poteto.cc/"><link rel="icon" href="/favicon.svg" type="image/svg+xml">
-<link rel="stylesheet" href="/style.css?v=1.3.3">
+<link rel="stylesheet" href="/style.css?v=1.4.0">
 <title>Poteto — You jump. I catch.</title>
 </head>
 <body>
@@ -37,6 +37,7 @@
 <div id="effects" aria-hidden="true"></div>
 </section>
 <div class="under-game"><span><i class="status-dot"></i><span data-i18n="underGame">Made for your happy little break</span></span><span class="desktop-tip"><span data-i18n="keyboardMove">← → to move platforms</span><span class="dot">·</span><span data-i18n="keyboardPause">Space to pause</span></span><button id="share-home" class="text-button"><span data-i18n="shareHome">Create &amp; share</span><span aria-hidden="true">↗</span></button></div>
+<section id="home-stats" class="community-stats home-stats" aria-label="Community statistics"><p class="stats-empty">Gathering our little garden…</p></section>
 </main>
 <footer><span data-i18n="footerFirst">Every leap deserves a soft landing.</span><span class="footer-heart" aria-hidden="true">♡</span><span data-i18n="footerLast">Happy bouncing.</span></footer>
 </div>
@@ -44,6 +45,9 @@
 <button id="close-settings" class="close icon-button" aria-label="Close settings" data-i18n-aria="settingsClose">×</button><span class="eyebrow" data-i18n="settingsKicker">HELLO, LITTLE SPUD</span><h2 id="settings-title" data-i18n="settingsTitle">A pocketful of joy.</h2><p data-i18n="settingsIntro">Poteto is a potato-sized take on Bouncy Relay. Move the back platform ahead and keep the bounce going.</p>
 <div class="how"><span><b>← / A</b> <span data-i18n="oneSpace">One space</span></span><span><b>→ / D</b> <span data-i18n="twoSpaces">Two spaces</span></span><span><b data-i18n="spaceKey">Space</b> <span data-i18n="pauseWord">Pause</span></span></div><p class="hint" data-i18n="rules">The number on your platform is your next jump. A 3 needs two quick moves: +1 and +2. A ? reveals a number with an in-place bounce. Keep its platform underneath.</p>
 <label class="setting-row"><span data-i18n="music">Music &amp; sounds</span><input type="checkbox" id="music-setting" checked></label><label class="setting-row"><span data-i18n="gentle">Gentle motion</span><input type="checkbox" id="motion-setting"></label>
+<label class="setting-row stats-setting"><span data-stats-copy="sharing">Share anonymous game stats</span><input type="checkbox" id="stats-enabled" checked></label>
+<p class="stats-privacy" data-stats-copy="privacy">An anonymous browser ID and finished-game scores help build these totals. Stored scores are grouped into ranges. No account needed.</p>
+<section id="about-stats" class="community-stats about-stats" aria-label="Community statistics"><p class="stats-empty">Gathering our little garden…</p></section>
 <div class="about-links"><a href="https://github.com/sssw/poteto.cc" target="_blank" rel="noopener noreferrer"><span data-i18n="github">View on GitHub</span> ↗</a><a href="https://apps.apple.com/app/id6764088294" target="_blank" rel="noopener noreferrer"><span data-i18n="ios">Bouncy Relay for iOS</span> ↗</a></div><p class="privacy" data-i18n="privacy">Your best score and preferences stay in this browser. No account needed.</p>
 </dialog>
 <dialog id="sharing" class="share-dialog" aria-labelledby="sharing-title">
@@ -61,5 +65,5 @@
 </div>
 </dialog>
 <div id="toast" role="status"></div>
-<script type="module" src="/app.js?v=1.3.3"></script>
+<script type="module" src="/app.js?v=1.4.0"></script>
 </body></html>
